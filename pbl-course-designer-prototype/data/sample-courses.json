@@ -1,0 +1,297 @@
+{
+  "courses": [
+    {
+      "id": "ai-ethics-high-school",
+      "title": "AI伦理与社会责任",
+      "description": "通过PBL方式探索人工智能技术的伦理问题，培养学生批判性思维和社会责任感",
+      "targetGrade": "高中一年级",
+      "duration": "6课时",
+      "subject": "信息技术/通用技术",
+      "objectives": [
+        "理解AI技术发展现状和社会影响",
+        "掌握基本的伦理分析框架",
+        "培养批判性思维和道德推理能力",
+        "增强社会责任感和公民意识"
+      ],
+      "lessons": [
+        {
+          "id": 1,
+          "title": "AI技术现状认知",
+          "description": "通过案例分析了解当前AI技术发展现状和应用场景",
+          "duration": "90分钟",
+          "activities": [
+            {
+              "name": "AI应用调研",
+              "type": "小组合作",
+              "duration": "30分钟",
+              "description": "分组调研不同领域的AI应用实例"
+            },
+            {
+              "name": "成果分享",
+              "type": "展示交流",
+              "duration": "30分钟", 
+              "description": "各组分享调研成果，讨论AI技术影响"
+            },
+            {
+              "name": "专题视频",
+              "type": "观看学习",
+              "duration": "20分钟",
+              "description": "观看AI发展历程和未来趋势视频"
+            },
+            {
+              "name": "反思总结",
+              "type": "个人思考",
+              "duration": "10分钟",
+              "description": "个人反思AI技术对生活的影响"
+            }
+          ],
+          "materials": [
+            "AI应用案例库",
+            "调研工作单",
+            "AI发展历程视频",
+            "思维导图模板"
+          ],
+          "assessment": {
+            "formative": [
+              "小组调研报告",
+              "课堂参与度观察"
+            ],
+            "summative": [
+              "个人反思日记"
+            ]
+          }
+        },
+        {
+          "id": 2,
+          "title": "AI伦理问题探索",
+          "description": "识别和分析AI技术带来的各种伦理挑战",
+          "duration": "90分钟",
+          "activities": [
+            {
+              "name": "伦理困境案例分析",
+              "type": "案例研究",
+              "duration": "40分钟",
+              "description": "分析自动驾驶、人脸识别等AI伦理困境"
+            },
+            {
+              "name": "角色扮演辩论",
+              "type": "辩论活动",
+              "duration": "35分钟",
+              "description": "从不同立场辩论AI伦理问题"
+            },
+            {
+              "name": "观点整理",
+              "type": "归纳总结",
+              "duration": "15分钟",
+              "description": "整理辩论中的不同观点和论据"
+            }
+          ],
+          "materials": [
+            "伦理困境案例集",
+            "角色卡片",
+            "辩论评分标准",
+            "观点记录表"
+          ],
+          "assessment": {
+            "formative": [
+              "案例分析质量",
+              "辩论表现评价"
+            ],
+            "summative": [
+              "观点论证报告"
+            ]
+          }
+        },
+        {
+          "id": 3,
+          "title": "伦理框架构建",
+          "description": "学习伦理理论，构建AI伦理评判标准",
+          "duration": "90分钟",
+          "activities": [
+            {
+              "name": "伦理理论学习",
+              "type": "理论学习",
+              "duration": "25分钟",
+              "description": "学习功利主义、义务论等伦理理论"
+            },
+            {
+              "name": "框架设计工作坊",
+              "type": "协作设计",
+              "duration": "45分钟",
+              "description": "小组合作设计AI伦理评判框架"
+            },
+            {
+              "name": "同伴评议",
+              "type": "互评活动",
+              "duration": "20分钟",
+              "description": "组间互评各自的伦理框架"
+            }
+          ],
+          "materials": [
+            "伦理理论介绍资料",
+            "框架设计模板",
+            "评议标准表",
+            "案例测试集"
+          ],
+          "assessment": {
+            "formative": [
+              "框架设计过程评价",
+              "同伴评议参与度"
+            ],
+            "summative": [
+              "伦理框架成果展示"
+            ]
+          }
+        }
+      ],
+      "finalProject": {
+        "title": "AI伦理政策提案",
+        "description": "基于学习成果，小组合作制作一份针对特定AI应用的伦理政策提案",
+        "duration": "2周",
+        "deliverables": [
+          "政策提案报告",
+          "PPT演示文稿",
+          "答辩展示"
+        ],
+        "rubric": {
+          "criteria": [
+            {
+              "name": "问题识别",
+              "weight": 25,
+              "levels": [
+                "准确识别核心伦理问题",
+                "基本识别主要问题", 
+                "部分识别相关问题",
+                "问题识别不准确"
+              ]
+            },
+            {
+              "name": "理论应用",
+              "weight": 25,
+              "levels": [
+                "恰当运用伦理理论分析",
+                "基本运用相关理论",
+                "理论运用不够深入",
+                "缺乏理论支撑"
+              ]
+            },
+            {
+              "name": "方案可行性",
+              "weight": 30,
+              "levels": [
+                "方案切实可行且创新",
+                "方案基本可行",
+                "方案可行性一般",
+                "方案不切实际"
+              ]
+            },
+            {
+              "name": "团队协作",
+              "weight": 20,
+              "levels": [
+                "团队协作出色",
+                "团队协作良好",
+                "团队协作一般",
+                "缺乏有效协作"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "programming-basics-middle",
+      "title": "编程思维启蒙",
+      "description": "通过项目式学习培养学生的计算思维和编程基础能力",
+      "targetGrade": "初中二年级",
+      "duration": "8课时",
+      "subject": "信息技术",
+      "objectives": [
+        "理解程序设计基本概念",
+        "掌握基础编程语法和结构",
+        "培养问题分解和抽象思维",
+        "体验程序设计的创作乐趣"
+      ],
+      "lessons": [
+        {
+          "id": 1,
+          "title": "程序世界初探",
+          "description": "通过生活中的算法认识程序设计",
+          "duration": "45分钟",
+          "activities": [
+            {
+              "name": "生活算法发现",
+              "type": "观察思考",
+              "duration": "15分钟",
+              "description": "发现日常生活中的算法实例"
+            },
+            {
+              "name": "算法流程图绘制",
+              "type": "动手实践",
+              "duration": "20分钟",
+              "description": "用流程图描述简单的生活算法"
+            },
+            {
+              "name": "程序体验",
+              "type": "实践操作",
+              "duration": "10分钟",
+              "description": "体验简单的可视化编程环境"
+            }
+          ],
+          "materials": [
+            "生活算法案例",
+            "流程图绘制工具",
+            "Scratch编程环境"
+          ]
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "id": "pbl-standard-template",
+      "name": "标准PBL课程模板",
+      "description": "基于项目式学习的标准课程设计模板",
+      "structure": {
+        "phases": [
+          {
+            "name": "项目启动",
+            "duration": "1课时",
+            "activities": [
+              "项目介绍",
+              "驱动问题提出",
+              "初始了解调研"
+            ]
+          },
+          {
+            "name": "知识建构",
+            "duration": "2-3课时",
+            "activities": [
+              "核心知识学习",
+              "技能训练",
+              "小组协作"
+            ]
+          },
+          {
+            "name": "项目实施",
+            "duration": "2-3课时",
+            "activities": [
+              "方案设计",
+              "原型制作",
+              "测试改进"
+            ]
+          },
+          {
+            "name": "成果展示",
+            "duration": "1课时",
+            "activities": [
+              "作品展示",
+              "同伴评议",
+              "反思总结"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

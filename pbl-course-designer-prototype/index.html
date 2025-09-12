@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBL课程设计智能助手</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/agents.css">
+    <link rel="stylesheet" href="css/course-editor.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <span class="logo-icon">🎓</span>
+                PBL课程设计助手
+            </h1>
+            <nav class="nav">
+                <button class="nav-btn active" data-tab="design">课程设计</button>
+                <button class="nav-btn" data-tab="templates">模板库</button>
+                <button class="nav-btn" data-tab="projects">我的项目</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="main-content">
+        <!-- 设计工作台 -->
+        <div id="design-workspace" class="workspace active">
+            <div class="workspace-layout">
+                <!-- 左侧：智能体协作面板 -->
+                <aside class="agents-panel">
+                    <div class="panel-header">
+                        <h2>智能体团队</h2>
+                        <div class="team-status">
+                            <span class="status-dot active"></span>
+                            <span>协作中</span>
+                        </div>
+                    </div>
+                    
+                    <div class="agents-list">
+                        <div class="agent-card" data-agent="theory-expert">
+                            <div class="agent-avatar">🎯</div>
+                            <div class="agent-info">
+                                <h3>教育理论专家</h3>
+                                <p class="agent-role">UBD框架设计</p>
+                                <div class="agent-status completed">
+                                    <span class="status-icon">✅</span>
+                                    已完成需求分析
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="agent-card" data-agent="course-architect">
+                            <div class="agent-avatar">🏗️</div>
+                            <div class="agent-info">
+                                <h3>课程架构师</h3>
+                                <p class="agent-role">整体结构设计</p>
+                                <div class="agent-status working">
+                                    <span class="status-icon">⚡</span>
+                                    正在设计课程结构
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 65%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="agent-card" data-agent="content-designer">
+                            <div class="agent-avatar">✍️</div>
+                            <div class="agent-info">
+                                <h3>内容设计师</h3>
+                                <p class="agent-role">学习活动创作</p>
+                                <div class="agent-status pending">
+                                    <span class="status-icon">⏳</span>
+                                    等待架构完成
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="agent-card" data-agent="assessment-expert">
+                            <div class="agent-avatar">📊</div>
+                            <div class="agent-info">
+                                <h3>评估专家</h3>
+                                <p class="agent-role">评价体系设计</p>
+                                <div class="agent-status pending">
+                                    <span class="status-icon">⏳</span>
+                                    准备中
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="agent-card" data-agent="material-creator">
+                            <div class="agent-avatar">📁</div>
+                            <div class="agent-info">
+                                <h3>资料制作师</h3>
+                                <p class="agent-role">教学资料生成</p>
+                                <div class="agent-status pending">
+                                    <span class="status-icon">⏳</span>
+                                    准备中
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- 中间：对话和编辑区域 -->
+                <section class="main-editor">
+                    <!-- 对话区域 -->
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message system-message">
+                                <div class="message-avatar">🎓</div>
+                                <div class="message-content">
+                                    <p>欢迎使用PBL课程设计助手！我将引导您完成整个课程设计流程。请告诉我您想设计什么主题的课程？</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input-container">
+                            <div class="input-group">
+                                <input type="text" id="chat-input" placeholder="描述您的课程想法，例如：我想设计一个关于AI伦理的高中课程...">
+                                <button id="send-btn" class="send-btn">
+                                    <span class="btn-text">发送</span>
+                                    <span class="btn-icon">📤</span>
+                                </button>
+                            </div>
+                            <div class="quick-actions">
+                                <button class="quick-btn" data-action="ai-ethics">AI伦理课程</button>
+                                <button class="quick-btn" data-action="programming">编程基础</button>
+                                <button class="quick-btn" data-action="data-science">数据科学</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 课程编辑器 -->
+                    <div class="course-editor" id="course-editor" style="display: none;">
+                        <div class="editor-header">
+                            <h2>课程结构设计</h2>
+                            <div class="editor-actions">
+                                <button class="btn-secondary" id="preview-btn">预览</button>
+                                <button class="btn-primary" id="generate-materials">生成教学资料</button>
+                            </div>
+                        </div>
+
+                        <div class="course-structure">
+                            <div class="structure-overview">
+                                <h3>课程概览</h3>
+                                <div class="course-info-grid">
+                                    <div class="info-item">
+                                        <label>课程主题</label>
+                                        <span id="course-theme">AI伦理与社会责任</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>目标学段</label>
+                                        <span id="target-grade">高中一年级</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>课程时长</label>
+                                        <span id="course-duration">6课时</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>学习目标</label>
+                                        <span id="learning-objectives">理解AI伦理基本原则，培养批判思维</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="lessons-structure">
+                                <h3>课时安排</h3>
+                                <div class="lessons-timeline">
+                                    <div class="lesson-item" data-lesson="1">
+                                        <div class="lesson-number">1</div>
+                                        <div class="lesson-content">
+                                            <h4>AI技术现状认知</h4>
+                                            <p>了解当前AI技术发展现状和应用场景</p>
+                                            <div class="lesson-activities">
+                                                <span class="activity-tag">小组讨论</span>
+                                                <span class="activity-tag">案例分析</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="lesson-item" data-lesson="2">
+                                        <div class="lesson-number">2</div>
+                                        <div class="lesson-content">
+                                            <h4>AI伦理问题探索</h4>
+                                            <p>探讨AI技术带来的伦理挑战和争议</p>
+                                            <div class="lesson-activities">
+                                                <span class="activity-tag">辩论赛</span>
+                                                <span class="activity-tag">角色扮演</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="lesson-item" data-lesson="3">
+                                        <div class="lesson-number">3</div>
+                                        <div class="lesson-content">
+                                            <h4>伦理框架构建</h4>
+                                            <p>学习和构建AI伦理评判框架</p>
+                                            <div class="lesson-activities">
+                                                <span class="activity-tag">框架设计</span>
+                                                <span class="activity-tag">同伴评议</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 右侧：项目管理和输出 -->
+                <aside class="project-panel">
+                    <div class="panel-header">
+                        <h2>项目进度</h2>
+                    </div>
+
+                    <div class="project-timeline">
+                        <div class="timeline-item completed">
+                            <div class="timeline-icon">✅</div>
+                            <div class="timeline-content">
+                                <h4>需求分析</h4>
+                                <p>完成课程需求收集和分析</p>
+                                <span class="timestamp">2分钟前</span>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item active">
+                            <div class="timeline-icon">⚡</div>
+                            <div class="timeline-content">
+                                <h4>结构设计</h4>
+                                <p>正在生成课程结构框架</p>
+                                <span class="timestamp">进行中</span>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item pending">
+                            <div class="timeline-icon">⏳</div>
+                            <div class="timeline-content">
+                                <h4>内容创作</h4>
+                                <p>等待开始内容创作</p>
+                                <span class="timestamp">待开始</span>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item pending">
+                            <div class="timeline-icon">⏳</div>
+                            <div class="timeline-content">
+                                <h4>资料生成</h4>
+                                <p>生成完整教学资料包</p>
+                                <span class="timestamp">待开始</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="output-preview">
+                        <h3>预期输出</h3>
+                        <div class="output-list">
+                            <div class="output-item">
+                                <span class="output-icon">📄</span>
+                                <span class="output-name">详细教案</span>
+                                <span class="output-status pending">待生成</span>
+                            </div>
+                            <div class="output-item">
+                                <span class="output-icon">📊</span>
+                                <span class="output-name">教学PPT</span>
+                                <span class="output-status pending">待生成</span>
+                            </div>
+                            <div class="output-item">
+                                <span class="output-icon">📋</span>
+                                <span class="output-name">学生手册</span>
+                                <span class="output-status pending">待生成</span>
+                            </div>
+                            <div class="output-item">
+                                <span class="output-icon">⭐</span>
+                                <span class="output-name">评估标准</span>
+                                <span class="output-status pending">待生成</span>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- 模板库 -->
+        <div id="templates-workspace" class="workspace">
+            <div class="templates-container">
+                <h2>课程模板库</h2>
+                <div class="templates-grid">
+                    <div class="template-card">
+                        <div class="template-preview">
+                            <div class="template-icon">🤖</div>
+                        </div>
+                        <div class="template-info">
+                            <h3>AI伦理与社会</h3>
+                            <p>高中 · 6课时 · PBL模式</p>
+                            <div class="template-tags">
+                                <span class="tag">批判思维</span>
+                                <span class="tag">小组合作</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="template-card">
+                        <div class="template-preview">
+                            <div class="template-icon">💻</div>
+                        </div>
+                        <div class="template-info">
+                            <h3>编程思维启蒙</h3>
+                            <p>初中 · 8课时 · PBL模式</p>
+                            <div class="template-tags">
+                                <span class="tag">逻辑思维</span>
+                                <span class="tag">项目实践</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 我的项目 -->
+        <div id="projects-workspace" class="workspace">
+            <div class="projects-container">
+                <h2>我的项目</h2>
+                <div class="projects-list">
+                    <div class="project-item">
+                        <div class="project-info">
+                            <h3>AI伦理与社会责任</h3>
+                            <p>最后编辑：2024年3月15日</p>
+                        </div>
+                        <div class="project-status">
+                            <span class="status-badge completed">已完成</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">智能体团队正在协作中...</p>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script src="js/agents.js"></script>
+    <script src="js/course-editor.js"></script>
+</body>
+</html>
