@@ -1,0 +1,641 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: pbl-assistant-frontend
+
+jobs:
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Run ESLint
+        working-directory: ./frontend
+        run: npm run lint
+        
+      - name: Check TypeScript
+        working-directory: ./frontend
+        run: npm run type-check
+        
+      - name: Check Prettier formatting
+        working-directory: ./frontend
+        run: npm run format:check
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Run unit tests
+        working-directory: ./frontend
+        run: |
+          npm run test -- \
+            --coverage \
+            --watchAll=false \
+            --ci \
+            --testResultsProcessor=jest-junit \
+            --coverageReporters=text \
+            --coverageReporters=lcov \
+            --coverageReporters=html
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./test-results
+          JEST_JUNIT_OUTPUT_NAME: unit-test-results.xml
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: frontend-unit-test-results
+          path: |
+            frontend/test-results/
+            frontend/coverage/
+
+  component-tests:
+    name: Component Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Run component tests
+        working-directory: ./frontend
+        run: |
+          npm run test:components -- \
+            --coverage \
+            --watchAll=false \
+            --ci \
+            --testPathPattern=__tests__/components/
+            
+      - name: Upload component test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: frontend-component-test-results
+          path: frontend/coverage/
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [lint-and-format]
+    strategy:
+      matrix:
+        environment: [staging, production]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Set environment variables
+        working-directory: ./frontend
+        run: |
+          if [ "${{ matrix.environment }}" = "production" ]; then
+            echo "NEXT_PUBLIC_API_URL=https://api.pbl-assistant.com" >> .env.production
+            echo "NEXT_PUBLIC_WS_URL=wss://api.pbl-assistant.com" >> .env.production
+            echo "NEXT_PUBLIC_SENTRY_DSN=${{ secrets.SENTRY_DSN_PROD }}" >> .env.production
+          else
+            echo "NEXT_PUBLIC_API_URL=https://staging-api.pbl-assistant.com" >> .env.staging
+            echo "NEXT_PUBLIC_WS_URL=wss://staging-api.pbl-assistant.com" >> .env.staging
+            echo "NEXT_PUBLIC_SENTRY_DSN=${{ secrets.SENTRY_DSN_STAGING }}" >> .env.staging
+          fi
+          
+      - name: Build application
+        working-directory: ./frontend
+        run: |
+          if [ "${{ matrix.environment }}" = "production" ]; then
+            npm run build
+          else
+            npm run build:staging
+          fi
+          
+      - name: Run build analysis
+        working-directory: ./frontend
+        run: npm run analyze
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ matrix.environment }}
+          path: |
+            frontend/.next/
+            frontend/out/
+          retention-days: 7
+
+  lighthouse-audit:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-staging
+          path: frontend/
+          
+      - name: Start application
+        working-directory: ./frontend
+        run: |
+          npm run start &
+          sleep 10
+          
+      - name: Run Lighthouse audit
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './frontend/.lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          
+      - name: Comment Lighthouse results
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('./lhci_reports/manifest.json'));
+            const comment = `## Lighthouse Performance Audit 🚀
+            
+            | Metric | Score |
+            |--------|-------|
+            | Performance | ${results[0].summary.performance}% |
+            | Accessibility | ${results[0].summary.accessibility}% |
+            | Best Practices | ${results[0].summary['best-practices']}% |
+            | SEO | ${results[0].summary.seo}% |
+            
+            [View full report](${results[0].url})`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, component-tests]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: npx playwright install --with-deps
+        
+      - name: Build application
+        working-directory: ./frontend
+        run: npm run build
+        
+      - name: Start backend services (mock)
+        run: |
+          # Start mock backend for E2E tests
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 30
+          
+      - name: Start frontend application
+        working-directory: ./frontend
+        run: |
+          npm run start &
+          sleep 10
+          
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: |
+          npx playwright test --reporter=html,junit \
+            --output-dir=test-results/e2e
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: http://localhost:3000
+          
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+            
+      - name: Stop services
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down
+
+  visual-regression-tests:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-staging
+          path: frontend/
+          
+      - name: Run visual regression tests
+        working-directory: ./frontend
+        run: |
+          npm run test:visual -- --reporter=html
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          
+      - name: Upload visual test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: visual-test-results
+          path: frontend/visual-test-results/
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Run npm audit
+        working-directory: ./frontend
+        run: |
+          npm audit --audit-level=high --json > audit-report.json
+        continue-on-error: true
+        
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=frontend/package.json --json > snyk-report.json
+        continue-on-error: true
+        
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports-frontend
+          path: |
+            frontend/audit-report.json
+            snyk-report.json
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [unit-tests, component-tests, build]
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            NEXT_PUBLIC_BUILD_ID=${{ github.sha }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-docker, e2e-tests]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.pbl-assistant.com
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: Deploy to S3 and CloudFront
+        run: |
+          # Download build artifacts
+          aws s3 sync s3://pbl-build-artifacts/staging/${{ github.sha }} ./build/
+          
+          # Upload to S3
+          aws s3 sync ./build/ s3://pbl-staging-frontend/ --delete
+          
+          # Invalidate CloudFront cache
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_STAGING_ID }} \
+            --paths "/*"
+            
+      - name: Run staging smoke tests
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npx playwright test --config=playwright.staging.config.ts \
+            --grep="@smoke"
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: https://staging.pbl-assistant.com
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-docker, e2e-tests, lighthouse-audit]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://pbl-assistant.com
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: Create deployment backup
+        run: |
+          # Backup current production deployment
+          aws s3 sync s3://pbl-production-frontend/ s3://pbl-backups/frontend/${{ github.sha }}/
+          
+      - name: Deploy to production
+        run: |
+          # Download build artifacts
+          aws s3 sync s3://pbl-build-artifacts/production/${{ github.sha }} ./build/
+          
+          # Upload to S3 with cache headers
+          aws s3 sync ./build/ s3://pbl-production-frontend/ \
+            --delete \
+            --cache-control "public, max-age=31536000" \
+            --exclude "*.html" \
+            --exclude "service-worker.js"
+            
+          # Upload HTML files with shorter cache
+          aws s3 sync ./build/ s3://pbl-production-frontend/ \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --include "*.html" \
+            --include "service-worker.js"
+          
+          # Invalidate CloudFront cache
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_PRODUCTION_ID }} \
+            --paths "/*"
+            
+      - name: Wait for deployment
+        run: |
+          # Wait for CloudFront invalidation
+          sleep 60
+          
+      - name: Run production health checks
+        run: |
+          for i in {1..10}; do
+            if curl -f https://pbl-assistant.com; then
+              echo "Health check passed"
+              break
+            else
+              echo "Health check failed, attempt $i/10"
+              sleep 30
+            fi
+          done
+          
+      - name: Run production smoke tests
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npx playwright test --config=playwright.production.config.ts \
+            --grep="@smoke"
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: https://pbl-assistant.com
+          
+      - name: Update Sentry release
+        run: |
+          curl -X POST "https://sentry.io/api/0/organizations/${{ secrets.SENTRY_ORG }}/releases/" \
+            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "version": "${{ github.sha }}",
+              "projects": ["pbl-assistant-frontend"]
+            }'
+
+  accessibility-tests:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-staging
+          path: frontend/
+          
+      - name: Start application
+        working-directory: ./frontend
+        run: |
+          npm run start &
+          sleep 10
+          
+      - name: Run accessibility tests
+        working-directory: ./frontend
+        run: |
+          npx playwright test --config=playwright.a11y.config.ts \
+            --reporter=html,junit
+            
+      - name: Upload accessibility test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: accessibility-test-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+      - name: Notify Slack on Success
+        if: needs.deploy-production.result == 'success' || needs.deploy-staging.result == 'success'
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: 'deployments'
+          SLACK_COLOR: 'good'
+          SLACK_MESSAGE: |
+            🚀 Frontend deployment successful!
+            Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            
+      - name: Notify Slack on Failure
+        if: needs.deploy-production.result == 'failure' || needs.deploy-staging.result == 'failure'
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: 'deployments'
+          SLACK_COLOR: 'danger'
+          SLACK_MESSAGE: |
+            ❌ Frontend deployment failed!
+            Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            Please check the logs and take action.

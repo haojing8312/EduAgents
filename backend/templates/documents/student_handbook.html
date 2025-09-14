@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ course.title }} - 学生学习手册</title>
+    <link rel="stylesheet" href="styles/student_handbook.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 封面页 -->
+        <div class="cover-page">
+            <div class="header">
+                <h1 class="main-title">{{ course.title }}</h1>
+                {% if course.subtitle %}
+                <h2 class="subtitle">{{ course.subtitle }}</h2>
+                {% endif %}
+                <div class="handbook-type">学生学习手册</div>
+            </div>
+            
+            <div class="welcome-section">
+                <h3>欢迎参加项目式学习</h3>
+                <p>这本手册将帮助你了解课程内容、学习目标和评估方式，指导你完成整个学习旅程。</p>
+            </div>
+            
+            <div class="course-overview">
+                <div class="overview-item">
+                    <span class="label">课程时长</span>
+                    <span class="value">{{ course.duration_weeks }}周 ({{ course.duration_hours }}学时)</span>
+                </div>
+                <div class="overview-item">
+                    <span class="label">学习方式</span>
+                    <span class="value">项目式学习 (PBL)</span>
+                </div>
+                <div class="overview-item">
+                    <span class="label">主要学科</span>
+                    <span class="value">{{ course.subject }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 学习指南 -->
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">📚 学习指南</h1>
+            
+            <div class="guide-section">
+                <h3>什么是项目式学习？</h3>
+                <p>项目式学习（PBL）是一种以学生为中心的教学方法，通过完成真实、有意义的项目来学习知识和技能。在这个过程中，你将：</p>
+                <ul class="feature-list">
+                    <li>🎯 围绕一个驱动性问题展开学习</li>
+                    <li>🤝 与同伴协作解决实际问题</li>
+                    <li>🔍 主动探究和收集信息</li>
+                    <li>🛠️ 创造有价值的最终产品</li>
+                    <li>🤔 反思学习过程和成果</li>
+                </ul>
+            </div>
+
+            {% if course.driving_question %}
+            <div class="guide-section">
+                <h3>我们的驱动性问题</h3>
+                <div class="driving-question-box">
+                    <p>{{ course.driving_question }}</p>
+                </div>
+                <p>这个问题将引导我们整个学习过程，让我们一起探索答案吧！</p>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- 学习目标 -->
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">🎯 学习目标</h1>
+            
+            {% if course.learning_objectives %}
+            <div class="objectives-intro">
+                <p>通过本课程的学习，你将能够：</p>
+            </div>
+            
+            <div class="objectives-grid">
+                {% for objective in course.learning_objectives %}
+                <div class="objective-card">
+                    <div class="objective-number">{{ loop.index }}</div>
+                    <div class="objective-content">{{ objective }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if course.core_competencies %}
+            <div class="competencies-section">
+                <h3>核心素养发展</h3>
+                <div class="competency-tags">
+                    {% for competency in course.core_competencies %}
+                    <span class="competency-tag">{{ competency }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- 项目概览 -->
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">🚀 项目概览</h1>
+            
+            {% if course.project_context %}
+            <div class="project-context">
+                <h3>项目背景</h3>
+                <div class="context-box">
+                    {{ course.project_context | markdown | safe }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if course.final_products %}
+            <div class="final-products">
+                <h3>最终成果</h3>
+                <p>在项目结束时，你将完成以下成果：</p>
+                <div class="products-grid">
+                    {% for product in course.final_products %}
+                    <div class="product-card">
+                        <div class="product-icon">📋</div>
+                        <div class="product-name">{{ product }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- 学习计划 -->
+        {% if include_schedule and course.phases %}
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">📅 学习计划</h1>
+            
+            <div class="timeline">
+                {% for phase in course.phases %}
+                <div class="timeline-item">
+                    <div class="timeline-marker">{{ loop.index }}</div>
+                    <div class="timeline-content">
+                        <h3>{{ phase.name }}</h3>
+                        <div class="phase-duration">{{ phase.duration_weeks }}周</div>
+                        <p>{{ phase.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- 课程安排 -->
+        {% if course.lessons %}
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">📖 课程安排</h1>
+            
+            {% for lesson in course.lessons %}
+            <div class="lesson-card">
+                <div class="lesson-header">
+                    <div class="lesson-number">第{{ lesson.sequence_number }}课</div>
+                    <div class="lesson-title">{{ lesson.title }}</div>
+                    <div class="lesson-duration">{{ lesson.duration_minutes | format_duration }}</div>
+                </div>
+                
+                {% if lesson.description %}
+                <div class="lesson-description">
+                    {{ lesson.description }}
+                </div>
+                {% endif %}
+                
+                {% if lesson.objectives %}
+                <div class="lesson-objectives">
+                    <strong>本课目标：</strong>
+                    <ul>
+                        {% for objective in lesson.objectives %}
+                        <li>{{ objective }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if lesson.activities %}
+                <div class="lesson-activities">
+                    <strong>主要活动：</strong>
+                    <ol>
+                        {% for activity in lesson.activities %}
+                        <li>{{ activity }}</li>
+                        {% endfor %}
+                    </ol>
+                </div>
+                {% endif %}
+                
+                {% if lesson.homework %}
+                <div class="lesson-homework">
+                    <strong>课后任务：</strong>
+                    <ul>
+                        {% for task in lesson.homework %}
+                        <li>{{ task }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- 评估方式 -->
+        {% if include_rubrics and course.assessments %}
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">📊 评估方式</h1>
+            
+            <div class="assessment-intro">
+                <p>我们将通过多种方式评估你的学习成果，包括：</p>
+            </div>
+            
+            {% for assessment in course.assessments %}
+            <div class="assessment-card">
+                <div class="assessment-header">
+                    <h3>{{ assessment.title }}</h3>
+                    <div class="assessment-type">{{ assessment.type }}</div>
+                    {% if assessment.weight %}
+                    <div class="assessment-weight">占{{ assessment.weight * 100 }}%</div>
+                    {% endif %}
+                </div>
+                
+                {% if assessment.description %}
+                <div class="assessment-description">
+                    {{ assessment.description }}
+                </div>
+                {% endif %}
+                
+                {% if assessment.criteria %}
+                <div class="assessment-criteria">
+                    <strong>评估要点：</strong>
+                    <ul>
+                        {% for criterion in assessment.criteria %}
+                        <li>{{ criterion }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if assessment.rubric %}
+                <div class="rubric-section">
+                    <strong>评分标准：</strong>
+                    <table class="student-rubric">
+                        <thead>
+                            <tr>
+                                <th>评估项目</th>
+                                <th>优秀 (A)</th>
+                                <th>良好 (B)</th>
+                                <th>合格 (C)</th>
+                                <th>需改进 (D)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dimension, levels in assessment.rubric.items() %}
+                            <tr>
+                                <td>{{ dimension }}</td>
+                                {% for level in levels %}
+                                <td>{{ level }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- 学习资源 -->
+        {% if include_resources %}
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">📚 学习资源</h1>
+            
+            {% if course.required_resources %}
+            <div class="resources-section">
+                <h3>📋 必需资源</h3>
+                <div class="resource-list">
+                    {% for resource in course.required_resources %}
+                    <div class="resource-item required">
+                        <span class="resource-icon">📌</span>
+                        <span class="resource-name">{{ resource }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if course.recommended_resources %}
+            <div class="resources-section">
+                <h3>💡 推荐资源</h3>
+                <div class="resource-list">
+                    {% for resource in course.recommended_resources %}
+                    <div class="resource-item recommended">
+                        <span class="resource-icon">💡</span>
+                        <span class="resource-name">{{ resource }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if course.technology_requirements %}
+            <div class="resources-section">
+                <h3>💻 技术工具</h3>
+                <div class="tech-list">
+                    {% for tech in course.technology_requirements %}
+                    <div class="tech-item">
+                        <strong>{{ tech.category }}：</strong>{{ tech.description }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <!-- 学习建议 -->
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">💡 学习建议</h1>
+            
+            <div class="tips-grid">
+                <div class="tip-card">
+                    <div class="tip-icon">🤝</div>
+                    <h3>积极协作</h3>
+                    <p>主动参与小组讨论，分享想法，倾听他人观点，共同解决问题。</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon">🔍</div>
+                    <h3>深入探究</h3>
+                    <p>不满足于表面答案，深入调研，多角度思考问题。</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon">📝</div>
+                    <h3>记录过程</h3>
+                    <p>记录学习过程中的思考、发现和困惑，有助于反思总结。</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon">💭</div>
+                    <h3>勇于提问</h3>
+                    <p>遇到疑问及时询问，好奇心是学习的最好动力。</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon">🎨</div>
+                    <h3>创新思维</h3>
+                    <p>尝试不同的解决方案，发挥创造力，创造独特的成果。</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon">🔄</div>
+                    <h3>持续改进</h3>
+                    <p>根据反馈不断改进作品，追求更好的效果。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 联系信息 -->
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">📞 联系我们</h1>
+            
+            <div class="contact-section">
+                <div class="contact-intro">
+                    <p>在学习过程中如有任何疑问，请随时联系我们：</p>
+                </div>
+                
+                <div class="contact-methods">
+                    <div class="contact-method">
+                        <div class="contact-icon">👨‍🏫</div>
+                        <div class="contact-info">
+                            <strong>课程教师</strong>
+                            <p>课堂时间或办公时间面对面交流</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-method">
+                        <div class="contact-icon">💬</div>
+                        <div class="contact-info">
+                            <strong>在线讨论</strong>
+                            <p>课程在线平台讨论区</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-method">
+                        <div class="contact-icon">📧</div>
+                        <div class="contact-info">
+                            <strong>邮件联系</strong>
+                            <p>非紧急问题可发送邮件</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 学习记录表格 -->
+        <div class="page-break"></div>
+        <section class="content-section">
+            <h1 class="section-title">📋 学习记录</h1>
+            
+            <div class="tracking-intro">
+                <p>使用下面的表格记录你的学习进度和反思：</p>
+            </div>
+            
+            <table class="tracking-table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>学习内容</th>
+                        <th>完成情况</th>
+                        <th>遇到的挑战</th>
+                        <th>收获和反思</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in range(10) %}
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+</body>
+</html>

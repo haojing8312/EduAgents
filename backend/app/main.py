@@ -35,6 +35,10 @@ from app.api.v1.courses import router as courses_router
 from app.api.v1.projects import router as projects_router
 from app.api.v1.websocket import router as websocket_router
 from app.api.v1.health import router as health_router
+from app.api.v1.course_export import router as export_router
+from app.api.v1.templates import router as templates_router
+from app.api.v1.quality import router as quality_router
+from app.api.v1.collaboration import router as collaboration_router
 
 
 @asynccontextmanager
@@ -218,6 +222,10 @@ app.include_router(agents_router, prefix="/api/v1", tags=["智能体"])
 app.include_router(courses_router, prefix="/api/v1", tags=["课程管理"])
 app.include_router(projects_router, prefix="/api/v1", tags=["项目管理"])
 app.include_router(websocket_router, prefix="/api/v1", tags=["实时通信"])
+app.include_router(export_router, prefix="/api/v1", tags=["课程导出"])
+app.include_router(templates_router, prefix="/api/v1", tags=["课程模板"])
+app.include_router(quality_router, prefix="/api/v1", tags=["质量检查"])
+app.include_router(collaboration_router, prefix="/api/v1", tags=["协作管理"])
 
 
 # 根路径
