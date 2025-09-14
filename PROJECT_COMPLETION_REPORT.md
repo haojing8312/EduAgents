@@ -9,7 +9,7 @@
 - ✅ **世界级技术架构** - 对标Manus AI的多智能体协作系统
 - ✅ **顶级用户体验** - 对标Flowise的可视化交互设计
 - ✅ **完整产品闭环** - 从需求输入到教学资料生成的端到端解决方案
-- ✅ **企业级质量** - 完整的测试、监控和CI/CD体系
+- ✅ **企业级质量** - 完整的测试和CI/CD体系
 
 ---
 
@@ -113,7 +113,6 @@ E:\code\yzpd\vibecodelesson\agents\
 │   ├── app/services/                      # 核心业务服务
 │   ├── app/api/                          # REST API接口
 │   ├── tests/                            # 完整测试套件
-│   ├── monitoring/                       # 监控系统
 │   └── docker-compose.yml               # 容器编排
 ├── 🎨 frontend/                           # 前端应用（完整实现）
 │   ├── src/components/                   # UI组件库

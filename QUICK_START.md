@@ -161,7 +161,7 @@ python analyze_results.py
 
 ---
 
-## 📊 监控和调试
+## 📊 系统调试
 
 ### 查看系统状态
 ```bash
@@ -178,10 +178,9 @@ docker-compose logs frontend
 docker-compose logs backend | grep "agent"
 ```
 
-### 性能监控
-- **Grafana仪表板**: http://localhost:3001 (admin/admin)
+### 系统健康检查
 - **健康检查端点**: http://localhost:8000/health
-- **实时指标**: http://localhost:8000/metrics
+- **API文档**: http://localhost:8000/docs
 
 ---
 

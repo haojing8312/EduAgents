@@ -12,7 +12,16 @@
       "Bash(git add:*)",
       "Bash(git rm:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git clone:*)",
+      "Bash(bun install:*)",
+      "Bash(npx ccstatusline:*)",
+      "Bash(npm run start:*)",
+      "Bash(node:*)",
+      "Bash(npx tsx:*)",
+      "Read(//c/Users/36443/.config/ccstatusline/**)",
+      "Bash(npx:*)",
+      "Read(//c/Users/36443/.claude/**)"
     ],
     "deny": [],
     "ask": []

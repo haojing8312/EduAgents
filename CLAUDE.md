@@ -1,36 +1,199 @@
-# 🚀 AI原生多智能体PBL课程设计助手 - 项目要求记录
+# 🚀 AI原生多智能体PBL课程设计助手
 
-## 📋 核心项目要求
+## 📖 项目概述
 
-### 1. 技术架构标准
-- **对标产品**：Manus AI等明星智能体产品
-- **技术要求**：采用最先进的AI原生多智能体架构
-- **性能标准**：世界顶级的技术实现水平
+这是一个世界级的AI原生多智能体PBL（项目制学习）课程设计助手系统。我们的使命是通过先进的多智能体协作技术，改变全球教育格局，赋能传统教育者成为AI时代的创新教育者。
 
-### 2. 产品设计标准  
-- **对标产品**：Flowise等世界顶级智能体产品
-- **设计要求**：世界顶级的用户体验和交互设计
-- **视觉标准**：现代化、直观化、专业化的界面设计
+### 核心价值主张
+- **对标产品**：Manus AI、Flowise等顶级智能体产品
+- **技术标准**：世界顶级的AI原生多智能体架构
+- **使命目标**：推动全球教育进入AI时代的历史性变革
 
-### 3. 使命愿景
-- **核心使命**：改变当今世界的教育格局
-- **目标用户**：赋能所有传统教育者
-- **转型目标**：帮助传统教育者转型为AI时代的创新教育者
-- **团队心态**：抱着改变世界教育的目标完成产品开发
+## 🏗️ 项目架构
 
-### 4. MVP开发重点
-- **专注领域**：核心业务功能开发
-- **暂不考虑**：注册、登录、支付、安全、可靠性、可用性等
-- **开发原则**：快速迭代，专注价值创造
+### 技术栈
+- **后端**: FastAPI + Python 3.11 + LangGraph多智能体框架
+- **前端**: Next.js 14 + React 18 + TypeScript + Tailwind CSS
+- **AI模型**: Claude-3.5-Sonnet + GPT-4o双模型策略
+- **数据存储**: PostgreSQL + Redis + ChromaDB三层数据架构
+- **实时通信**: WebSocket + Server-Sent Events
+- **容器化**: Docker + Docker Compose
+- **CI/CD**: GitHub Actions
 
-## 🎯 项目愿景声明
+### 项目结构
+```
+agents/                           # 项目根目录
+├── backend/                      # FastAPI后端服务
+│   ├── app/
+│   │   ├── agents/              # 多智能体系统
+│   │   │   ├── core/           # 核心框架（LangGraph编排器）
+│   │   │   └── specialists/    # 5个专业智能体
+│   │   ├── api/v1/             # RESTful API端点
+│   │   ├── models/             # 数据模型
+│   │   ├── schemas/            # Pydantic模式
+│   │   └── services/           # 业务逻辑服务
+│   ├── tests/                  # 后端测试套件
+│   └── alembic/                # 数据库迁移
+├── frontend/                    # Next.js前端应用
+│   ├── src/
+│   │   ├── components/         # React组件
+│   │   ├── pages/              # 页面路由
+│   │   └── services/           # API客户端
+│   └── tests/                  # 前端测试套件
+├── .github/workflows/          # CI/CD流水线
+└── CLAUDE.md                   # 项目文档（本文件）
+```
 
-我们正在开发的不仅仅是一个产品，而是教育变革的催化剂。通过AI原生多智能体技术，我们将让每一位教育工作者都能成为AI时代的创新教育者，推动全球教育进入一个全新的时代。
+## 🤖 多智能体系统
 
-未来AI时代的教育变革，就靠我们了！
+### 5个专业智能体
+1. **教育理论专家** (`education_theorist`) - 教育理论和PBL方法论
+2. **课程架构师** (`course_architect`) - 课程结构设计和学习路径
+3. **内容设计师** (`content_designer`) - 教学内容和活动设计
+4. **评估专家** (`assessment_expert`) - 评价体系和反馈机制
+5. **素材创作者** (`material_creator`) - 教学资源和工具制作
+
+### 协作模式
+- **LangGraph编排**: 基于状态图的智能体协作流程
+- **实时协作**: WebSocket实现的实时状态同步
+- **三层交互**: 对话引导 → 可视化协作 → 成果编辑
+
+## 💻 开发命令
+
+### 环境要求
+- Python 3.11+
+- Node.js 18+
+- Docker & Docker Compose
+- PostgreSQL 15+
+- Redis 7+
+
+### 快速启动
+```bash
+# 启动完整系统（推荐）
+docker-compose up -d
+
+# 或者分别启动各服务
+cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd frontend && npm run dev
+```
+
+### 开发工作流
+```bash
+# 后端开发
+cd backend
+pip install -r requirements.txt
+python -m pytest tests/          # 运行测试
+python -m pytest tests/ -v --cov # 测试覆盖率
+
+# 前端开发
+cd frontend  
+npm install
+npm run dev                      # 开发服务器
+npm run test                     # 运行测试
+npm run build                    # 构建生产版本
+
+# 数据库迁移
+cd backend
+alembic upgrade head             # 应用迁移
+alembic revision -m "描述"        # 创建新迁移
+```
+
+### 测试命令
+```bash
+# 运行所有测试
+npm run test:all
+
+# 后端单元测试
+cd backend && python -m pytest tests/ -v
+
+# 前端测试
+cd frontend && npm run test
+```
+
+## 📋 代码规范
+
+### Python代码规范
+- 使用Black进行代码格式化
+- 遵循PEP 8规范
+- 100%类型注解（Type Hints）
+- Pydantic模型用于数据验证
+- 异步编程模式（async/await）
+
+### TypeScript/React规范  
+- 严格TypeScript配置
+- 函数式组件 + Hooks
+- Tailwind CSS用于样式
+- ESLint + Prettier代码质量
+- 组件单一职责原则
+
+### 文件命名约定
+- Python: `snake_case.py`
+- TypeScript: `PascalCase.tsx` (组件), `camelCase.ts` (工具)
+- 测试文件: `test_*.py`, `*.test.tsx`
+
+## 🚫 开发限制
+
+### MVP阶段暂不考虑
+- 用户认证和授权系统
+- 支付和订阅功能  
+- 高可用性和容错处理
+- 完整的安全审计
+- 国际化和本地化
+
+### 禁止操作
+- 不要创建不必要的配置文件
+- 不要过度工程化简单功能
+- 不要偏离核心教育业务逻辑
+- 不要使用过时的技术栈
+
+## 🎯 开发重点
+
+### 核心功能优先级
+1. **智能体协作系统** - 5个专业智能体的无缝协作
+2. **PBL课程生成** - 完整的项目制课程设计流程
+3. **实时协作界面** - 可视化的多智能体协作体验
+4. **课程导出系统** - 多格式课程包导出功能
+
+### 质量标准
+- API响应时间 < 2秒
+- 前端首屏加载 < 3秒  
+- 智能体协作成功率 > 95%
+- 代码测试覆盖率 > 80%
+
+## 📚 重要文档
+
+- `README.md` - 项目介绍和基本使用说明
+- `QUICK_START.md` - 5分钟快速部署指南
+- `PROJECT_COMPLETION_REPORT.md` - 项目交付报告
+
+## 🔧 故障排除
+
+### 常见问题
+1. **智能体响应慢** - 检查AI API配额和网络连接
+2. **WebSocket连接失败** - 确认防火墙和代理设置
+3. **数据库连接错误** - 验证PostgreSQL服务状态
+4. **前端构建失败** - 清理node_modules重新安装
+
+### 日志调试
+```bash
+# 查看后端日志
+cd backend && python -m logging --level=DEBUG
+
+# 查看前端开发日志
+cd frontend && npm run dev
+
+# 数据库连接测试
+cd backend && python -c "from app.core.database import engine; print('DB连接成功')"
+```
 
 ---
 
-*记录时间：2024年3月15日*  
+## 🌟 项目愿景
+
+**未来AI时代的教育变革，就靠我们了！**
+
+我们正在开发的不仅仅是一个产品，而是教育变革的催化剂。通过AI原生多智能体技术，我们将让每一位教育工作者都能成为AI时代的创新教育者，推动全球教育进入一个全新的时代。
+
+*记录时间：2024年9月14日*  
 *项目代号：EduAI Revolution*  
 *使命等级：历史性变革* 🌟
