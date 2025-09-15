@@ -21,7 +21,20 @@
       "Bash(npx tsx:*)",
       "Read(//c/Users/36443/.config/ccstatusline/**)",
       "Bash(npx:*)",
-      "Read(//c/Users/36443/.claude/**)"
+      "Read(//c/Users/36443/.claude/**)",
+      "Bash(cat:*)",
+      "Bash(set COLUMNS=150)",
+      "Bash(uv:*)",
+      "Bash(chcp:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm:*)",
+      "Bash(./node_modules/.bin/next dev)",
+      "Bash(echo $PATH)",
+      "Bash(/d/worksoft/nodejs/node ./node_modules/.bin/next dev)",
+      "Bash(./node_modules/.bin/next.cmd dev:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

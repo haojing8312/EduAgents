@@ -1,36 +1,32 @@
 """
 测试配置和共享fixtures
 """
+
 import asyncio
 import os
-import pytest
-import pytest_asyncio
 from typing import AsyncGenerator, Generator
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import text
-from fastapi.testclient import TestClient
-from httpx import AsyncClient
-import redis.asyncio as redis
 from unittest.mock import AsyncMock, MagicMock
 
-from app.main import app
+import pytest
+import pytest_asyncio
+import redis.asyncio as redis
+from fastapi.testclient import TestClient
+from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.core.config import settings
 from app.core.database import get_db
+from app.main import app
 from app.models.base import Base
-
 
 # 测试数据库配置
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 test_engine = create_async_engine(
-    TEST_DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False}
+    TEST_DATABASE_URL, echo=False, connect_args={"check_same_thread": False}
 )
 TestSessionLocal = async_sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=test_engine,
-    class_=AsyncSession
+    autocommit=False, autoflush=False, bind=test_engine, class_=AsyncSession
 )
 
 
@@ -48,11 +44,11 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """数据库会话fixture"""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     async with TestSessionLocal() as session:
         yield session
         await session.rollback()
-    
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -60,14 +56,15 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """测试客户端fixture"""
+
     def override_get_db():
         return db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -93,7 +90,9 @@ def mock_ai_service():
     """模拟AI服务"""
     mock = MagicMock()
     mock.generate_response = AsyncMock(return_value="Mock AI response")
-    mock.analyze_content = AsyncMock(return_value={"sentiment": "positive", "score": 0.8})
+    mock.analyze_content = AsyncMock(
+        return_value={"sentiment": "positive", "score": 0.8}
+    )
     return mock
 
 
@@ -114,7 +113,7 @@ def sample_user_data():
         "email": "test@example.com",
         "username": "testuser",
         "full_name": "Test User",
-        "password": "testpassword123"
+        "password": "testpassword123",
     }
 
 
@@ -130,8 +129,8 @@ def sample_course_data():
         "learning_objectives": [
             "掌握Python编程基础",
             "学会项目管理方法",
-            "培养团队协作能力"
-        ]
+            "培养团队协作能力",
+        ],
     }
 
 
@@ -144,7 +143,7 @@ def sample_project_data():
         "type": "technology",
         "complexity_level": "intermediate",
         "estimated_hours": 40,
-        "required_skills": ["Python", "IoT", "UI设计"]
+        "required_skills": ["Python", "IoT", "UI设计"],
     }
 
 
@@ -176,31 +175,19 @@ def malicious_inputs():
         "'; DROP TABLE users; --",
         "{{7*7}}",
         "../../../etc/passwd",
-        "javascript:alert(1)"
+        "javascript:alert(1)",
     ]
 
 
 # 测试标记
 def pytest_configure(config):
     """配置测试标记"""
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: marks tests as end-to-end tests"
-    )
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow running"
-    )
-    config.addinivalue_line(
-        "markers", "performance: marks tests as performance tests"
-    )
-    config.addinivalue_line(
-        "markers", "security: marks tests as security tests"
-    )
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
+    config.addinivalue_line("markers", "slow: marks tests as slow running")
+    config.addinivalue_line("markers", "performance: marks tests as performance tests")
+    config.addinivalue_line("markers", "security: marks tests as security tests")
 
 
 # 测试钩子

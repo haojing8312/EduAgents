@@ -16,6 +16,7 @@
 
 ### 必需环境
 - **Python**: 3.11+
+- **uv**: 最新版本 (推荐的Python包管理器)
 - **Node.js**: 18+
 - **Docker**: 最新版本
 - **Git**: 最新版本
@@ -91,20 +92,20 @@ docker-compose logs -f
 
 ## 🏗️ 开发环境设置
 
-### 后端开发
+### 后端开发 (推荐使用uv)
 ```bash
 # 进入后端目录
 cd backend
 
-# 创建虚拟环境
+# 🚀 使用uv (推荐) - 自动管理虚拟环境
+uv sync                    # 安装所有依赖
+uv run scripts/dev.py      # 启动开发服务器
+
+# 或者传统方式
 python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# 或 venv\Scripts\activate  # Windows
-
-# 安装依赖
+source venv/bin/activate   # Linux/macOS
+# 或 venv\Scripts\activate # Windows
 pip install -r requirements.txt
-
-# 启动开发服务器
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -127,7 +128,8 @@ docker-compose up -d postgres redis chromadb
 
 # 运行数据库迁移
 cd backend
-alembic upgrade head
+uv run alembic upgrade head  # 使用uv (推荐)
+# 或 alembic upgrade head    # 传统方式
 ```
 
 ---
@@ -136,9 +138,10 @@ alembic upgrade head
 
 ### 运行完整测试套件
 ```bash
-# 后端测试
+# 后端测试 (使用uv - 推荐)
 cd backend
-pytest tests/ -v --cov=app
+uv run scripts/test.py --cov     # 包含覆盖率
+# 或 uv run pytest tests/ -v --cov=app
 
 # 前端测试
 cd frontend
@@ -148,16 +151,6 @@ npm test
 npm run test:e2e
 ```
 
-### 性能测试
-```bash
-# 负载测试
-cd performance_tests
-pip install -r requirements.txt
-python load_test.py
-
-# 结果分析
-python analyze_results.py
-```
 
 ---
 

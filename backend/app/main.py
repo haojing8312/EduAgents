@@ -3,42 +3,43 @@ PBL智能助手 - FastAPI主应用
 高性能异步API服务，支持多智能体协作和实时通信
 """
 
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-import uvicorn
-import logging
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from app.core.config import settings
-from app.core.middleware import (
-    RateLimitMiddleware,
-    LoggingMiddleware,
-    MetricsMiddleware
-)
-from app.core.exceptions import (
-    AgentException,
-    ValidationException,
-    AuthenticationException
-)
-from app.db.session import init_db
-from app.utils.logger import setup_logging
-from app.utils.cache import init_redis
-from app.utils.vector_store import init_chroma
+from app.api.v1.agents import router as agents_router
 
 # API路由导入
 from app.api.v1.auth import router as auth_router
-from app.api.v1.agents import router as agents_router
-from app.api.v1.courses import router as courses_router
-from app.api.v1.projects import router as projects_router
-from app.api.v1.websocket import router as websocket_router
-from app.api.v1.health import router as health_router
-from app.api.v1.course_export import router as export_router
-from app.api.v1.templates import router as templates_router
-from app.api.v1.quality import router as quality_router
 from app.api.v1.collaboration import router as collaboration_router
+from app.api.v1.course_export import router as export_router
+from app.api.v1.courses import router as courses_router
+from app.api.v1.health import router as health_router
+from app.api.v1.projects import router as projects_router
+from app.api.v1.quality import router as quality_router
+from app.api.v1.templates import router as templates_router
+from app.api.v1.websocket import router as websocket_router
+from app.core.config import settings
+from app.core.exceptions import (
+    AgentException,
+    AuthenticationException,
+    ValidationException,
+)
+from app.core.middleware import (
+    LoggingMiddleware,
+    MetricsMiddleware,
+    RateLimitMiddleware,
+)
+from app.db.session import init_db
+from app.utils.cache import init_redis
+from app.utils.logger import setup_logging
+from app.utils.vector_store import init_chroma
 
 
 @asynccontextmanager
@@ -47,28 +48,28 @@ async def lifespan(app: FastAPI):
     # 启动时初始化
     logger = logging.getLogger(__name__)
     logger.info("🚀 启动PBL智能助手后端服务...")
-    
+
     try:
         # 初始化数据库
         await init_db()
         logger.info("✅ 数据库初始化完成")
-        
+
         # 初始化Redis缓存
         await init_redis()
         logger.info("✅ Redis缓存初始化完成")
-        
+
         # 初始化ChromaDB向量数据库
         await init_chroma()
         logger.info("✅ ChromaDB向量数据库初始化完成")
-        
+
         logger.info("🎉 所有服务初始化完成，系统准备就绪")
-        
+
     except Exception as e:
         logger.error(f"❌ 服务初始化失败: {e}")
         raise
-    
+
     yield
-    
+
     # 关闭时清理
     logger.info("🛑 正在关闭PBL智能助手后端服务...")
     # 这里可以添加清理逻辑
@@ -102,7 +103,7 @@ app = FastAPI(
     docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
     redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
     openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # 设置日志
@@ -116,7 +117,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
-    expose_headers=["X-Total-Count", "X-Page-Count"]
+    expose_headers=["X-Total-Count", "X-Page-Count"],
 )
 
 # 压缩中间件
@@ -125,9 +126,11 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # 自定义中间件
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(LoggingMiddleware)
-app.add_middleware(RateLimitMiddleware, 
-                   calls=settings.RATE_LIMIT_CALLS,
-                   period=settings.RATE_LIMIT_PERIOD)
+app.add_middleware(
+    RateLimitMiddleware,
+    calls=settings.RATE_LIMIT_CALLS,
+    period=settings.RATE_LIMIT_PERIOD,
+)
 
 # Prometheus监控
 if settings.ENABLE_METRICS:
@@ -139,11 +142,14 @@ if settings.ENABLE_METRICS:
 @app.exception_handler(AgentException)
 async def agent_exception_handler(request: Request, exc: AgentException):
     """智能体异常处理"""
-    logger.error(f"智能体异常: {exc.detail}", extra={
-        "agent_type": exc.agent_type,
-        "error_code": exc.error_code,
-        "request_id": getattr(request.state, "request_id", None)
-    })
+    logger.error(
+        f"智能体异常: {exc.detail}",
+        extra={
+            "agent_type": exc.agent_type,
+            "error_code": exc.error_code,
+            "request_id": getattr(request.state, "request_id", None),
+        },
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -151,8 +157,8 @@ async def agent_exception_handler(request: Request, exc: AgentException):
             "message": exc.detail,
             "agent_type": exc.agent_type,
             "error_code": exc.error_code,
-            "request_id": getattr(request.state, "request_id", None)
-        }
+            "request_id": getattr(request.state, "request_id", None),
+        },
     )
 
 
@@ -162,11 +168,11 @@ async def validation_exception_handler(request: Request, exc: ValidationExceptio
     return JSONResponse(
         status_code=422,
         content={
-            "error": "validation_error", 
+            "error": "validation_error",
             "message": exc.detail,
             "field": exc.field,
-            "request_id": getattr(request.state, "request_id", None)
-        }
+            "request_id": getattr(request.state, "request_id", None),
+        },
     )
 
 
@@ -178,8 +184,8 @@ async def auth_exception_handler(request: Request, exc: AuthenticationException)
         content={
             "error": "authentication_error",
             "message": exc.detail,
-            "request_id": getattr(request.state, "request_id", None)
-        }
+            "request_id": getattr(request.state, "request_id", None),
+        },
     )
 
 
@@ -192,26 +198,29 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "error": "http_error",
             "message": exc.detail,
             "status_code": exc.status_code,
-            "request_id": getattr(request.state, "request_id", None)
-        }
+            "request_id": getattr(request.state, "request_id", None),
+        },
     )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """通用异常处理"""
-    logger.exception("未处理的异常", extra={
-        "request_id": getattr(request.state, "request_id", None),
-        "path": request.url.path,
-        "method": request.method
-    })
+    logger.exception(
+        "未处理的异常",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "path": request.url.path,
+            "method": request.method,
+        },
+    )
     return JSONResponse(
         status_code=500,
         content={
             "error": "internal_server_error",
             "message": "服务器内部错误",
-            "request_id": getattr(request.state, "request_id", None)
-        }
+            "request_id": getattr(request.state, "request_id", None),
+        },
     )
 
 
@@ -236,21 +245,23 @@ async def root():
         "service": "PBL智能助手 API",
         "version": "1.0.0",
         "status": "running",
-        "documentation": "/docs" if settings.ENVIRONMENT != "production" else "disabled",
+        "documentation": (
+            "/docs" if settings.ENVIRONMENT != "production" else "disabled"
+        ),
         "agents": {
             "education_director": "教育总监",
-            "pbl_curriculum_designer": "PBL课程设计师", 
+            "pbl_curriculum_designer": "PBL课程设计师",
             "learning_experience_designer": "学习体验设计师",
             "creative_technologist": "创意技术专家",
-            "makerspace_manager": "创客空间管理员"
+            "makerspace_manager": "创客空间管理员",
         },
         "features": [
             "多智能体协作",
             "实时WebSocket通信",
             "高性能缓存",
             "向量语义搜索",
-            "企业级安全"
-        ]
+            "企业级安全",
+        ],
     }
 
 
@@ -263,5 +274,5 @@ if __name__ == "__main__":
         reload=True if settings.ENVIRONMENT == "development" else False,
         log_level="info",
         access_log=True,
-        workers=1 if settings.ENVIRONMENT == "development" else 4
+        workers=1 if settings.ENVIRONMENT == "development" else 4,
     )

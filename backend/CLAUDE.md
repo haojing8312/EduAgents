@@ -31,7 +31,20 @@ agents/
 
 ## 💻 开发命令
 
-### 环境设置
+### 环境设置 (使用uv - 推荐)
+```bash
+cd backend
+
+# uv会自动创建虚拟环境并安装依赖
+uv sync
+
+# 或者手动创建虚拟环境
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv pip install -e .
+```
+
+### 传统环境设置 (如果没有uv)
 ```bash
 cd backend
 python -m venv venv
@@ -39,38 +52,61 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 数据库操作
-```bash
-# 创建迁移
-alembic revision --autogenerate -m "描述"
-
-# 应用迁移
-alembic upgrade head
-
-# 回滚迁移
-alembic downgrade -1
-```
-
 ### 开发服务器
 ```bash
-# 开发模式启动
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 🚀 推荐：使用uv运行开发脚本
+uv run scripts/dev.py
 
-# 生产模式启动
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+# 或者直接使用uv run
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 传统方式（需要激活虚拟环境）
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 测试
 ```bash
-# 运行所有测试
+# 🧪 推荐：使用uv运行测试脚本
+uv run scripts/test.py           # 基础测试
+uv run scripts/test.py --cov     # 包含覆盖率
+uv run scripts/test.py --unit    # 只运行单元测试
+uv run scripts/test.py --parallel # 并行测试
+
+# 或者直接使用uv run
+uv run pytest tests/ -v
+uv run pytest tests/ --cov=app --cov-report=html
+
+# 传统方式
 python -m pytest tests/
+```
 
-# 测试覆盖率
-python -m pytest tests/ -v --cov=app --cov-report=html
+### 代码质量
+```bash
+# 🎨 代码格式化
+uv run scripts/format.py
 
-# 特定测试
-python -m pytest tests/test_agents/ -v
-python -m pytest tests/test_api/ -v
+# 🔍 代码检查
+uv run scripts/lint.py
+
+# 或者单独运行
+uv run black app tests scripts     # 代码格式化
+uv run isort app tests scripts     # 导入排序
+uv run flake8 app tests            # 风格检查
+uv run mypy app                    # 类型检查
+uv run bandit -r app               # 安全检查
+```
+
+### 数据库操作
+```bash
+# 使用uv运行数据库迁移
+uv run alembic revision --autogenerate -m "描述"
+uv run alembic upgrade head
+uv run alembic downgrade -1
+
+# 传统方式（需要激活虚拟环境）
+alembic revision --autogenerate -m "描述"
+alembic upgrade head
+alembic downgrade -1
 ```
 
 ## 📋 代码规范

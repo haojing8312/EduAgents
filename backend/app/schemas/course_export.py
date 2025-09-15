@@ -3,14 +3,16 @@
 """
 
 from datetime import datetime
-from typing import Dict, Any, List, Optional
-from uuid import UUID
 from enum import Enum
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
 class ExportFormat(str, Enum):
     """导出格式枚举"""
+
     PDF_TEACHING_PLAN = "pdf_teaching_plan"
     PDF_HANDBOOK = "pdf_handbook"
     PDF_RUBRIC = "pdf_rubric"
@@ -21,6 +23,7 @@ class ExportFormat(str, Enum):
 
 class ExportStatus(str, Enum):
     """导出状态枚举"""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -29,10 +32,11 @@ class ExportStatus(str, Enum):
 
 class CourseExportRequest(BaseModel):
     """课程导出请求"""
+
     format: ExportFormat = Field(..., description="导出格式")
     options: Dict[str, Any] = Field(default_factory=dict, description="导出选项")
     async_export: bool = Field(default=False, description="是否异步导出")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -41,21 +45,21 @@ class CourseExportRequest(BaseModel):
                     "include_objectives": True,
                     "include_activities": True,
                     "include_assessments": True,
-                    "detailed_lessons": True
+                    "detailed_lessons": True,
                 },
-                "async_export": False
+                "async_export": False,
             }
         }
 
 
 class BatchExportRequest(BaseModel):
     """批量导出请求"""
+
     formats: List[ExportFormat] = Field(..., description="导出格式列表")
     options: Dict[ExportFormat, Dict[str, Any]] = Field(
-        default_factory=dict, 
-        description="每种格式的导出选项"
+        default_factory=dict, description="每种格式的导出选项"
     )
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -63,22 +67,21 @@ class BatchExportRequest(BaseModel):
                 "options": {
                     "pdf_teaching_plan": {
                         "include_objectives": True,
-                        "detailed_lessons": True
+                        "detailed_lessons": True,
                     },
                     "pdf_handbook": {
                         "include_schedule": True,
-                        "student_friendly": True
+                        "student_friendly": True,
                     },
-                    "docx": {
-                        "type": "complete"
-                    }
-                }
+                    "docx": {"type": "complete"},
+                },
             }
         }
 
 
 class CourseExportResponse(BaseModel):
     """课程导出响应"""
+
     export_id: UUID = Field(..., description="导出ID")
     status: ExportStatus = Field(..., description="导出状态")
     format: Optional[ExportFormat] = Field(None, description="导出格式")
@@ -89,7 +92,7 @@ class CourseExportResponse(BaseModel):
     message: Optional[str] = Field(None, description="状态消息")
     created_at: Optional[datetime] = Field(None, description="创建时间")
     completed_at: Optional[datetime] = Field(None, description="完成时间")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -100,13 +103,14 @@ class CourseExportResponse(BaseModel):
                 "file_size": 1048576,
                 "download_url": "/api/v1/exports/123e4567-e89b-12d3-a456-426614174000/download",
                 "created_at": "2024-01-01T10:00:00Z",
-                "completed_at": "2024-01-01T10:01:30Z"
+                "completed_at": "2024-01-01T10:01:30Z",
             }
         }
 
 
 class ExportFormatInfo(BaseModel):
     """导出格式信息"""
+
     format: ExportFormat = Field(..., description="格式标识")
     name: str = Field(..., description="格式名称")
     description: str = Field(..., description="格式描述")
@@ -117,8 +121,9 @@ class ExportFormatInfo(BaseModel):
 
 class SupportedFormatsResponse(BaseModel):
     """支持的格式响应"""
+
     formats: List[ExportFormatInfo] = Field(..., description="支持的格式列表")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -133,8 +138,8 @@ class SupportedFormatsResponse(BaseModel):
                             "include_objectives": True,
                             "include_activities": True,
                             "include_assessments": True,
-                            "detailed_lessons": True
-                        }
+                            "detailed_lessons": True,
+                        },
                     },
                     {
                         "format": "docx",
@@ -142,11 +147,8 @@ class SupportedFormatsResponse(BaseModel):
                         "description": "生成可编辑的Word格式文档",
                         "file_extension": ".docx",
                         "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "options": {
-                            "type": "complete",
-                            "include_images": True
-                        }
-                    }
+                        "options": {"type": "complete", "include_images": True},
+                    },
                 ]
             }
         }
@@ -154,6 +156,7 @@ class SupportedFormatsResponse(BaseModel):
 
 class ExportHistoryResponse(BaseModel):
     """导出历史响应"""
+
     exports: List[CourseExportResponse] = Field(..., description="导出记录列表")
     total: int = Field(..., description="总数")
     page: int = Field(..., description="当前页")
@@ -162,6 +165,7 @@ class ExportHistoryResponse(BaseModel):
 
 class ExportStatistics(BaseModel):
     """导出统计"""
+
     total_exports: int = Field(..., description="总导出次数")
     format_breakdown: Dict[ExportFormat, int] = Field(..., description="格式分布")
     success_rate: float = Field(..., description="成功率")
@@ -172,6 +176,7 @@ class ExportStatistics(BaseModel):
 # PDF特定选项
 class PDFExportOptions(BaseModel):
     """PDF导出选项"""
+
     include_objectives: bool = Field(default=True, description="包含学习目标")
     include_activities: bool = Field(default=True, description="包含活动内容")
     include_assessments: bool = Field(default=True, description="包含评估信息")
@@ -185,19 +190,21 @@ class PDFExportOptions(BaseModel):
 # Word文档特定选项
 class DocxExportOptions(BaseModel):
     """Word文档导出选项"""
+
     type: str = Field(default="complete", description="文档类型")
     include_images: bool = Field(default=True, description="包含图片")
     include_tables: bool = Field(default=True, description="包含表格")
     template_style: str = Field(default="modern", description="模板样式")
     page_margins: Dict[str, float] = Field(
         default_factory=lambda: {"top": 1.0, "bottom": 1.0, "left": 1.0, "right": 1.0},
-        description="页面边距（英寸）"
+        description="页面边距（英寸）",
     )
 
 
 # PowerPoint特定选项
 class PptxExportOptions(BaseModel):
     """PowerPoint导出选项"""
+
     slide_layout: str = Field(default="standard", description="幻灯片布局")
     include_notes: bool = Field(default=True, description="包含备注")
     animation_style: str = Field(default="none", description="动画样式")
@@ -208,6 +215,7 @@ class PptxExportOptions(BaseModel):
 # JSON导出特定选项
 class JsonExportOptions(BaseModel):
     """JSON导出选项"""
+
     include_metadata: bool = Field(default=True, description="包含元数据")
     include_relationships: bool = Field(default=True, description="包含关联关系")
     pretty_print: bool = Field(default=True, description="格式化输出")

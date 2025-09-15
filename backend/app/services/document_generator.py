@@ -3,30 +3,31 @@
 自动生成教案、学生手册、评估标准等教学资料
 """
 
-import os
-import json
 import asyncio
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Union, BinaryIO
-from datetime import datetime
-from pathlib import Path
-from io import BytesIO
-import tempfile
+import json
 import logging
+import os
+import tempfile
+from abc import ABC, abstractmethod
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from typing import Any, BinaryIO, Dict, List, Optional, Union
+
+import markdown
 
 # 文档生成依赖
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from weasyprint import HTML, CSS
-from python-docx import Document
-from python-docx.shared import Inches, Pt
-from python-docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from markdown.extensions import codehilite, tables, toc
 from pptx import Presentation
 from pptx.util import Inches as PptxInches
-import markdown
-from markdown.extensions import codehilite, tables, toc
+from python-docx import Document
+from python-docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from python-docx.shared import Inches, Pt
+from weasyprint import CSS, HTML
 
-from ..models.course import Course, Lesson, Assessment, Resource
 from ..core.config import settings
+from ..models.course import Assessment, Course, Lesson, Resource
 
 logger = logging.getLogger(__name__)
 

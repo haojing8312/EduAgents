@@ -1,13 +1,13 @@
-[tool.poetry]
+[project]
 name = "pbl-intelligent-assistant"
 version = "1.0.0"
 description = "世界级PBL课程设计智能助手后端API"
-authors = ["PBL Assistant Team <team@pbl-assistant.com>"]
+authors = [
+    {name = "PBL Assistant Team", email = "team@pbl-assistant.com"}
+]
 readme = "README.md"
-license = "MIT"
-homepage = "https://pbl-assistant.com"
-repository = "https://github.com/your-org/pbl-intelligent-assistant"
-documentation = "https://docs.pbl-assistant.com"
+license = {text = "MIT"}
+requires-python = ">=3.11"
 keywords = ["PBL", "education", "AI", "agents", "FastAPI", "LangGraph"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -20,106 +20,108 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.11"
+dependencies = [
+    # Web框架
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    
+    # 数据库
+    "sqlalchemy>=2.0.23",
+    "asyncpg>=0.29.0",
+    "alembic>=1.12.1",
+    
+    # 缓存
+    "redis>=5.0.1",
+    "hiredis>=2.2.3",
+    
+    # 向量数据库
+    "chromadb>=0.4.15",
+    
+    # AI和智能体框架
+    "langchain>=0.0.350",
+    "langchain-core>=0.1.0",
+    "langchain-openai>=0.0.5",
+    "langchain-anthropic>=0.0.4",
+    "langgraph>=0.0.60",
+    
+    # 认证和安全
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart>=0.0.6",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.1.2",
+    
+    # 数据验证
+    "pydantic[email]>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    
+    # HTTP客户端
+    "httpx>=0.25.2",
+    "aiohttp>=3.9.1",
+    
+    # 工具库
+    "python-dateutil>=2.8.2",
+    "pytz>=2023.3",
+    "structlog>=23.2.0",
+    
+    # 文件处理
+    "python-magic>=0.4.27",
+    "pillow>=10.1.0",
+    
+    # 异步任务
+    "celery[redis]>=5.3.4",
+    
+    # 配置管理
+    "python-dotenv>=1.0.0",
+    
+    # 健康检查
+    "requests>=2.31.0",
+]
 
-# Web框架
-fastapi = "^0.104.1"
-uvicorn = {extras = ["standard"], version = "^0.24.0"}
+[project.optional-dependencies]
+dev = [
+    # 测试框架
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    
+    # 代码质量
+    "black>=23.11.0",
+    "isort>=5.12.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.1",
+    "bandit>=1.7.5",
+    "safety>=2.3.4",
+    
+    # 开发工具
+    "pre-commit>=3.6.0",
+    "jupyter>=1.0.0",
+    "ipython>=8.17.2",
+    
+    # 性能分析
+    "py-spy>=0.3.14",
+    "memory-profiler>=0.61.0",
+]
 
-# 数据库
-sqlalchemy = "^2.0.23"
-asyncpg = "^0.29.0"
-alembic = "^1.12.1"
+test = [
+    "pytest-xdist>=3.5.0",  # 并行测试
+    "factory-boy>=3.3.0",   # 测试数据工厂
+    "faker>=20.1.0",        # 假数据生成
+]
 
-# 缓存
-redis = "^5.0.1"
-hiredis = "^2.2.3"
+docs = [
+    "mkdocs>=1.5.3",
+    "mkdocs-material>=9.4.8",
+]
 
-# 向量数据库
-chromadb = "^0.4.15"
-
-# AI和智能体框架
-langchain = "^0.0.350"
-langchain-core = "^0.1.0"
-langchain-openai = "^0.0.5"
-langchain-anthropic = "^0.0.4"
-langgraph = "^0.0.60"
-
-# 认证和安全
-python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-python-multipart = "^0.0.6"
-passlib = {extras = ["bcrypt"], version = "^1.7.4"}
-bcrypt = "^4.1.2"
-
-# 数据验证
-pydantic = {extras = ["email"], version = "^2.5.0"}
-pydantic-settings = "^2.1.0"
-
-# HTTP客户端
-httpx = "^0.25.2"
-aiohttp = "^3.9.1"
-
-# 工具库
-python-dateutil = "^2.8.2"
-pytz = "^2023.3"
-structlog = "^23.2.0"
-
-# 监控和日志
-prometheus-client = "^0.19.0"
-prometheus-fastapi-instrumentator = "^6.1.0"
-sentry-sdk = {extras = ["fastapi"], version = "^1.38.0"}
-
-# 文件处理
-python-magic = "^0.4.27"
-pillow = "^10.1.0"
-
-# 异步任务
-celery = {extras = ["redis"], version = "^5.3.4"}
-
-# 配置管理
-python-dotenv = "^1.0.0"
-
-# 测试相关（开发依赖但也用于生产环境的健康检查）
-requests = "^2.31.0"
-
-[tool.poetry.group.dev.dependencies]
-# 测试框架
-pytest = "^7.4.3"
-pytest-asyncio = "^0.21.1"
-pytest-cov = "^4.1.0"
-pytest-mock = "^3.12.0"
-httpx = "^0.25.2"  # 用于测试API
-
-# 代码质量
-black = "^23.11.0"
-isort = "^5.12.0"
-flake8 = "^6.1.0"
-mypy = "^1.7.1"
-bandit = "^1.7.5"
-safety = "^2.3.4"
-
-# 开发工具
-pre-commit = "^3.6.0"
-jupyter = "^1.0.0"
-ipython = "^8.17.2"
-
-# 文档生成
-mkdocs = "^1.5.3"
-mkdocs-material = "^9.4.8"
-
-# 性能分析
-py-spy = "^0.3.14"
-memory-profiler = "^0.61.0"
-
-[tool.poetry.group.test.dependencies]
-pytest-xdist = "^3.5.0"  # 并行测试
-factory-boy = "^3.3.0"   # 测试数据工厂
-faker = "^20.1.0"        # 假数据生成
+# 移除scripts配置，使用uv run代替
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 # 工具配置
 [tool.black]
@@ -135,6 +137,7 @@ extend-exclude = '''
   | \.mypy_cache
   | \.tox
   | \.venv
+  | \.uv-cache
   | build
   | dist
 )/
@@ -195,6 +198,7 @@ omit = [
     "*/migrations/*", 
     "*/venv/*",
     "*/env/*",
+    "*/.venv/*",
 ]
 
 [tool.coverage.report]
@@ -211,10 +215,24 @@ exclude_lines = [
 exclude_dirs = ["tests", "migrations"]
 skips = ["B101", "B601"]
 
-[tool.poetry.scripts]
-start = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
-dev = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
-test = "pytest"
-format = "black app tests && isort app tests"
-lint = "flake8 app tests && mypy app"
-security = "bandit -r app"
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1", 
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "black>=23.11.0",
+    "isort>=5.12.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.1",
+    "bandit>=1.7.5",
+    "safety>=2.3.4",
+    "pre-commit>=3.6.0",
+    "jupyter>=1.0.0",
+    "ipython>=8.17.2",
+    "py-spy>=0.3.14",
+    "memory-profiler>=0.61.0",
+    "pytest-xdist>=3.5.0",
+    "factory-boy>=3.3.0",
+    "faker>=20.1.0",
+]

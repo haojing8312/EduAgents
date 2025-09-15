@@ -73,17 +73,19 @@ agents/                           # 项目根目录
 docker-compose up -d
 
 # 或者分别启动各服务
-cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd backend && uv run scripts/dev.py    # 使用uv (推荐)
 cd frontend && npm run dev
 ```
 
 ### 开发工作流
 ```bash
-# 后端开发
+# 后端开发 (使用uv - 推荐)
 cd backend
-pip install -r requirements.txt
-python -m pytest tests/          # 运行测试
-python -m pytest tests/ -v --cov # 测试覆盖率
+uv sync                          # 安装依赖
+uv run scripts/test.py           # 运行测试
+uv run scripts/test.py --cov     # 测试覆盖率
+uv run scripts/format.py         # 代码格式化
+uv run scripts/lint.py           # 代码检查
 
 # 前端开发
 cd frontend  
@@ -94,20 +96,20 @@ npm run build                    # 构建生产版本
 
 # 数据库迁移
 cd backend
-alembic upgrade head             # 应用迁移
-alembic revision -m "描述"        # 创建新迁移
+uv run alembic upgrade head      # 应用迁移
+uv run alembic revision -m "描述" # 创建新迁移
 ```
 
 ### 测试命令
 ```bash
-# 运行所有测试
-npm run test:all
-
-# 后端单元测试
-cd backend && python -m pytest tests/ -v
+# 后端测试 (使用uv - 推荐)
+cd backend && uv run scripts/test.py
 
 # 前端测试
 cd frontend && npm run test
+
+# 运行所有测试
+npm run test:all  # 如果配置了跨项目测试脚本
 ```
 
 ## 📋 代码规范

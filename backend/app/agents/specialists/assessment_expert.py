@@ -3,13 +3,13 @@ Assessment Expert Agent
 Designs comprehensive assessment strategies and evaluation tools
 """
 
-from typing import Dict, Any, List, Optional, AsyncGenerator
-from datetime import datetime
 import json
+from datetime import datetime
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from ..core.base_agent import BaseAgent
-from ..core.state import AgentState, AgentMessage, MessageType, AgentRole
 from ..core.llm_manager import ModelCapability, ModelType
+from ..core.state import AgentMessage, AgentRole, AgentState, MessageType
 
 
 class AssessmentExpertAgent(BaseAgent):
@@ -17,7 +17,7 @@ class AssessmentExpertAgent(BaseAgent):
     Expert in educational assessment and evaluation design
     Creates authentic, comprehensive assessment strategies
     """
-    
+
     def __init__(self, llm_manager):
         super().__init__(
             role=AgentRole.ASSESSMENT_EXPERT,
@@ -27,14 +27,16 @@ class AssessmentExpertAgent(BaseAgent):
             capabilities=[
                 ModelCapability.ANALYSIS,
                 ModelCapability.REASONING,
-                ModelCapability.LANGUAGE
+                ModelCapability.LANGUAGE,
             ],
-            preferred_model=ModelType.CLAUDE_35_SONNET
+            preferred_model=ModelType.CLAUDE_35_SONNET,
         )
-    
+
     def _initialize_system_prompts(self) -> None:
         """Initialize assessment specific prompts"""
-        self._system_prompts["default"] = """
+        self._system_prompts[
+            "default"
+        ] = """
 You are the Assessment Specialist, an expert in educational evaluation and assessment design.
 Your expertise includes:
 - Authentic and performance-based assessment
@@ -49,8 +51,10 @@ Your role is to create comprehensive, fair, and meaningful assessment strategies
 that accurately measure learning while supporting student growth. Design assessments
 that are integrated with learning, not separate from it.
 """
-        
-        self._system_prompts["assessment_design"] = """
+
+        self._system_prompts[
+            "assessment_design"
+        ] = """
 Design assessment strategies that:
 1. Align with learning objectives and outcomes
 2. Measure both process and product
@@ -60,17 +64,14 @@ Design assessment strategies that:
 6. Promote self-reflection and metacognition
 7. Support learning, not just measure it
 """
-    
+
     async def process_task(
-        self,
-        task: Dict[str, Any],
-        state: AgentState,
-        stream: bool = False
+        self, task: Dict[str, Any], state: AgentState, stream: bool = False
     ) -> AsyncGenerator[Dict[str, Any], None] | Dict[str, Any]:
         """Process assessment design tasks"""
-        
+
         task_type = task.get("type", "design")
-        
+
         if task_type == "design_strategy":
             result = await self._design_assessment_strategy(task, state, stream)
         elif task_type == "create_rubrics":
@@ -81,7 +82,7 @@ Design assessment strategies that:
             result = await self._create_feedback_system(task, state, stream)
         else:
             result = await self._general_assessment_task(task, state, stream)
-        
+
         if stream:
             async for chunk in result:
                 yield chunk
@@ -90,19 +91,16 @@ Design assessment strategies that:
             state.assessment_strategy = result.get("assessment", {})
             self.tasks_completed += 1
             yield self._create_response(result)
-    
+
     async def _design_assessment_strategy(
-        self,
-        task: Dict[str, Any],
-        state: AgentState,
-        stream: bool
+        self, task: Dict[str, Any], state: AgentState, stream: bool
     ) -> Dict[str, Any]:
         """Design comprehensive assessment strategy"""
-        
+
         requirements = state.course_requirements
         architecture = state.course_architecture
         objectives = state.theoretical_framework.get("learning_objectives", {})
-        
+
         prompt = f"""
 Design a comprehensive assessment strategy for this PBL course:
 Requirements: {json.dumps(requirements, indent=2)}
@@ -118,7 +116,7 @@ Create an assessment plan that includes:
 6. Clear success criteria and rubrics
 7. Feedback and revision cycles
 """
-        
+
         response_schema = {
             "assessment_philosophy": {
                 "approach": "string",
@@ -127,8 +125,8 @@ Create an assessment plan that includes:
                     "formative_weight": "number",
                     "summative_weight": "number",
                     "individual_weight": "number",
-                    "group_weight": "number"
-                }
+                    "group_weight": "number",
+                },
             },
             "formative_assessments": [
                 {
@@ -138,7 +136,7 @@ Create an assessment plan that includes:
                     "purpose": "string",
                     "method": "string",
                     "feedback_approach": "string",
-                    "tools": ["string"]
+                    "tools": ["string"],
                 }
             ],
             "summative_assessments": [
@@ -149,20 +147,20 @@ Create an assessment plan that includes:
                     "components": ["string"],
                     "weight": "number",
                     "criteria": ["string"],
-                    "format": "string"
+                    "format": "string",
                 }
             ],
             "self_assessment": {
                 "frequency": "string",
                 "tools": ["string"],
                 "reflection_prompts": ["string"],
-                "growth_tracking": "string"
+                "growth_tracking": "string",
             },
             "peer_assessment": {
                 "activities": ["string"],
                 "protocols": ["string"],
                 "training": "string",
-                "quality_assurance": "string"
+                "quality_assurance": "string",
             },
             "performance_tasks": [
                 {
@@ -170,7 +168,7 @@ Create an assessment plan that includes:
                     "authentic_context": "string",
                     "skills_assessed": ["string"],
                     "evidence_required": ["string"],
-                    "differentiation": "string"
+                    "differentiation": "string",
                 }
             ],
             "feedback_system": {
@@ -178,58 +176,46 @@ Create an assessment plan that includes:
                 "frequency": "string",
                 "delivery_methods": ["string"],
                 "revision_opportunities": "number",
-                "growth_documentation": "string"
+                "growth_documentation": "string",
             },
             "grading_approach": {
                 "philosophy": "string",
                 "components": [
-                    {
-                        "category": "string",
-                        "weight": "number",
-                        "description": "string"
-                    }
+                    {"category": "string", "weight": "number", "description": "string"}
                 ],
                 "standards_based": "boolean",
-                "growth_recognition": "string"
-            }
+                "growth_recognition": "string",
+            },
         }
-        
+
         result = await self._generate_structured_response(
-            prompt,
-            response_schema,
-            self._system_prompts["assessment_design"]
+            prompt, response_schema, self._system_prompts["assessment_design"]
         )
-        
+
         # Request alignment review from education theorist
         await self.request_collaboration(
             AgentRole.EDUCATION_THEORIST,
-            {
-                "request_type": "review_assessment_alignment",
-                "assessment": result
-            },
-            state
+            {"request_type": "review_assessment_alignment", "assessment": result},
+            state,
         )
-        
+
         return {
             "type": "assessment_strategy",
             "assessment": result,
             "quality_metrics": {
                 "authenticity": 0.93,
                 "comprehensiveness": 0.91,
-                "fairness": 0.94
-            }
+                "fairness": 0.94,
+            },
         }
-    
+
     async def _create_assessment_rubrics(
-        self,
-        task: Dict[str, Any],
-        state: AgentState,
-        stream: bool
+        self, task: Dict[str, Any], state: AgentState, stream: bool
     ) -> Dict[str, Any]:
         """Create detailed assessment rubrics"""
-        
+
         assessment_focus = task.get("focus", "general")
-        
+
         prompt = f"""
 Create detailed assessment rubrics for {assessment_focus} in a PBL context.
 
@@ -242,7 +228,7 @@ Develop rubrics that:
 6. Support student self-assessment
 7. Enable constructive feedback
 """
-        
+
         response_schema = {
             "rubrics": [
                 {
@@ -257,55 +243,46 @@ Develop rubrics that:
                                 "exemplary": {
                                     "score": 4,
                                     "description": "string",
-                                    "indicators": ["string"]
+                                    "indicators": ["string"],
                                 },
                                 "proficient": {
                                     "score": 3,
                                     "description": "string",
-                                    "indicators": ["string"]
+                                    "indicators": ["string"],
                                 },
                                 "developing": {
                                     "score": 2,
                                     "description": "string",
-                                    "indicators": ["string"]
+                                    "indicators": ["string"],
                                 },
                                 "beginning": {
                                     "score": 1,
                                     "description": "string",
-                                    "indicators": ["string"]
-                                }
-                            }
+                                    "indicators": ["string"],
+                                },
+                            },
                         }
                     ],
                     "total_points": "number",
                     "feedback_prompts": ["string"],
-                    "self_assessment_questions": ["string"]
+                    "self_assessment_questions": ["string"],
                 }
             ]
         }
-        
+
         result = await self._generate_structured_response(
-            prompt,
-            response_schema,
-            self._system_prompts["assessment_design"]
+            prompt, response_schema, self._system_prompts["assessment_design"]
         )
-        
-        return {
-            "type": "assessment_rubrics",
-            "rubrics": result,
-            "clarity_score": 0.92
-        }
-    
+
+        return {"type": "assessment_rubrics", "rubrics": result, "clarity_score": 0.92}
+
     async def _design_portfolio_assessment(
-        self,
-        task: Dict[str, Any],
-        state: AgentState,
-        stream: bool
+        self, task: Dict[str, Any], state: AgentState, stream: bool
     ) -> Dict[str, Any]:
         """Design portfolio-based assessment system"""
-        
+
         portfolio_params = task.get("params", {})
-        
+
         prompt = f"""
 Design a comprehensive portfolio assessment system for:
 {json.dumps(portfolio_params, indent=2)}
@@ -319,81 +296,67 @@ Include:
 6. Evaluation criteria
 7. Digital portfolio options
 """
-        
+
         response_schema = {
             "portfolio_system": {
                 "structure": {
                     "sections": ["string"],
                     "organization": "string",
-                    "navigation": "string"
+                    "navigation": "string",
                 },
                 "artifacts": {
                     "required": [
-                        {
-                            "type": "string",
-                            "purpose": "string",
-                            "criteria": ["string"]
-                        }
+                        {"type": "string", "purpose": "string", "criteria": ["string"]}
                     ],
                     "optional": ["string"],
-                    "selection_guidance": "string"
+                    "selection_guidance": "string",
                 },
                 "reflections": {
                     "frequency": "string",
                     "prompts": ["string"],
                     "format": "string",
-                    "depth_expectations": "string"
+                    "depth_expectations": "string",
                 },
                 "growth_documentation": {
                     "baseline": "string",
                     "progress_markers": ["string"],
                     "evidence_types": ["string"],
-                    "visualization": "string"
+                    "visualization": "string",
                 },
                 "presentation": {
                     "format": "string",
                     "audience": ["string"],
                     "duration": "string",
                     "components": ["string"],
-                    "preparation": "string"
+                    "preparation": "string",
                 },
                 "evaluation": {
                     "criteria": ["string"],
                     "reviewers": ["string"],
                     "process": "string",
-                    "feedback_format": "string"
+                    "feedback_format": "string",
                 },
                 "digital_tools": [
-                    {
-                        "tool": "string",
-                        "purpose": "string",
-                        "features": ["string"]
-                    }
-                ]
+                    {"tool": "string", "purpose": "string", "features": ["string"]}
+                ],
             }
         }
-        
-        result = await self._generate_structured_response(
-            prompt,
-            response_schema
-        )
-        
+
+        result = await self._generate_structured_response(prompt, response_schema)
+
         return {
             "type": "portfolio_assessment",
             "portfolio": result,
-            "comprehensiveness": 0.94
+            "comprehensiveness": 0.94,
         }
-    
+
     async def _create_feedback_system(
-        self,
-        task: Dict[str, Any],
-        state: AgentState,
-        stream: bool
+        self, task: Dict[str, Any], state: AgentState, stream: bool
     ) -> Dict[str, Any]:
         """Create comprehensive feedback system"""
-        
+
         feedback_requirements = task.get("requirements", {})
-        
+
         prompt = f"""
 Create a comprehensive feedback system for PBL with:
 {json.dumps(feedback_requirements, indent=2)}
@@ -407,7 +370,7 @@ Design:
 6. Feedback tracking and response
 7. Growth-oriented messaging
 """
-        
+
         response_schema = {
             "feedback_system": {
                 "channels": [
@@ -415,120 +378,100 @@ Design:
                         "type": "string",
                         "frequency": "string",
                         "format": "string",
-                        "tools": ["string"]
+                        "tools": ["string"],
                     }
                 ],
                 "protocols": {
                     "timing": "string",
                     "response_time": "string",
-                    "follow_up": "string"
+                    "follow_up": "string",
                 },
                 "frameworks": {
                     "structure": "string",
                     "components": ["string"],
                     "language_guidelines": ["string"],
-                    "examples": ["string"]
+                    "examples": ["string"],
                 },
                 "peer_feedback": {
                     "training_modules": ["string"],
                     "practice_activities": ["string"],
                     "quality_criteria": ["string"],
-                    "moderation": "string"
+                    "moderation": "string",
                 },
                 "digital_tools": [
-                    {
-                        "tool": "string",
-                        "features": ["string"],
-                        "integration": "string"
-                    }
+                    {"tool": "string", "features": ["string"], "integration": "string"}
                 ],
                 "tracking": {
                     "system": "string",
                     "metrics": ["string"],
                     "reporting": "string",
-                    "action_triggers": ["string"]
+                    "action_triggers": ["string"],
                 },
                 "growth_messaging": {
                     "principles": ["string"],
                     "templates": ["string"],
-                    "celebration_points": ["string"]
-                }
+                    "celebration_points": ["string"],
+                },
             }
         }
-        
-        result = await self._generate_structured_response(
-            prompt,
-            response_schema
-        )
-        
+
+        result = await self._generate_structured_response(prompt, response_schema)
+
         return {
             "type": "feedback_system",
             "system": result,
-            "effectiveness_score": 0.91
+            "effectiveness_score": 0.91,
         }
-    
+
     async def _general_assessment_task(
-        self,
-        task: Dict[str, Any],
-        state: AgentState,
-        stream: bool
+        self, task: Dict[str, Any], state: AgentState, stream: bool
     ) -> Dict[str, Any]:
         """Handle general assessment tasks"""
-        
+
         query = task.get("query", "")
-        
-        response = await self._generate_response(
-            query,
-            self._system_prompts["default"]
-        )
-        
-        return {
-            "type": "general_assessment",
-            "response": response
-        }
-    
+
+        response = await self._generate_response(query, self._system_prompts["default"])
+
+        return {"type": "general_assessment", "response": response}
+
     async def collaborate(
-        self,
-        message: AgentMessage,
-        state: AgentState
+        self, message: AgentMessage, state: AgentState
     ) -> AgentMessage:
         """Handle collaboration requests from other agents"""
-        
+
         request_type = message.content.get("request_type")
-        
+
         if request_type == "validate_assessment":
             # Validate assessment approach
             approach = message.content.get("approach", {})
             response = await self._validate_assessment_approach(approach, state)
-            
+
         elif request_type == "align_content":
             # Align assessment with content
             content = message.content.get("content", {})
             response = await self._align_with_content(content, state)
-            
+
         elif request_type == "timing_requirements":
             # Provide timing requirements
             context = message.content.get("context", {})
             response = await self._provide_timing_requirements(context)
-            
+
         else:
             response = {"status": "acknowledged"}
-        
+
         return AgentMessage(
             sender=self.role,
             recipient=message.sender,
             message_type=MessageType.RESPONSE,
             content=response,
-            parent_message_id=message.id
+            parent_message_id=message.id,
         )
-    
+
     async def _validate_assessment_approach(
-        self,
-        approach: Dict[str, Any],
-        state: AgentState
+        self, approach: Dict[str, Any], state: AgentState
     ) -> Dict[str, Any]:
         """Validate assessment approach"""
-        
+
         prompt = f"""
 Validate this assessment approach:
 {json.dumps(approach, indent=2)}
@@ -539,22 +482,16 @@ Check for:
 3. Practicality and feasibility
 4. Alignment with best practices
 """
-        
+
         validation = await self._generate_response(prompt)
-        
-        return {
-            "status": "validated",
-            "feedback": validation,
-            "approved": True
-        }
-    
+
+        return {"status": "validated", "feedback": validation, "approved": True}
+
     async def _align_with_content(
-        self,
-        content: Dict[str, Any],
-        state: AgentState
+        self, content: Dict[str, Any], state: AgentState
     ) -> Dict[str, Any]:
         """Align assessment with content"""
-        
+
         prompt = f"""
 Align assessment strategies with this content:
 {json.dumps(content, indent=2)}
@@ -565,29 +502,25 @@ Ensure:
 3. Appropriate assessment methods for content type
 4. Clear connections between learning and assessment
 """
-        
+
         alignment = await self._generate_response(prompt)
-        
-        return {
-            "status": "aligned",
-            "adjustments": alignment
-        }
-    
+
+        return {"status": "aligned", "adjustments": alignment}
+
     async def _provide_timing_requirements(
-        self,
-        context: Dict[str, Any]
+        self, context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Provide timing requirements for assessments"""
-        
+
         return {
             "timing_requirements": {
                 "formative": "ongoing",
                 "summative": "end_of_module",
                 "feedback": "within_48_hours",
-                "revision": "1_week"
+                "revision": "1_week",
             }
         }
-    
+
     def _get_required_fields(self) -> List[str]:
         """Get required fields for task input"""
         return ["type"]
