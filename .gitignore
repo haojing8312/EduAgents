@@ -185,7 +185,6 @@ uploads/
 backend/.env
 backend/logs/
 backend/uploads/
-backend/simple_app.py
 
 # ChromaDB data
 chroma_data/

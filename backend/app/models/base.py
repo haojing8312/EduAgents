@@ -7,10 +7,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.sql import func
+from app.core.config import get_settings
 
 
 @as_declarative()
@@ -29,6 +30,13 @@ class Base:
 
         name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", cls.__name__)
         return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
+
+    # 配置schema
+    @declared_attr
+    def __table_args__(cls):
+        """配置表参数，包括schema"""
+        settings = get_settings()
+        return {"schema": settings.POSTGRES_SCHEMA}
 
 
 class BaseModel(Base):

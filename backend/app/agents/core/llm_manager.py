@@ -90,6 +90,10 @@ class LLMManager:
         self,
         anthropic_api_key: Optional[str] = None,
         openai_api_key: Optional[str] = None,
+        anthropic_base_url: Optional[str] = None,
+        openai_base_url: Optional[str] = None,
+        anthropic_model_name: Optional[str] = None,
+        openai_model_name: Optional[str] = None,
         default_model: ModelType = ModelType.CLAUDE_35_SONNET,
         enable_fallback: bool = True,
         max_retries: int = 3,
@@ -98,15 +102,25 @@ class LLMManager:
         """Initialize the LLM Manager with API clients"""
         self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        self.anthropic_base_url = anthropic_base_url or os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
+        self.openai_base_url = openai_base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+        self.anthropic_model_name = anthropic_model_name or os.getenv("ANTHROPIC_MODEL_NAME")
+        self.openai_model_name = openai_model_name or os.getenv("OPENAI_MODEL_NAME")
 
         # Initialize clients
         self.anthropic_client = (
-            AsyncAnthropic(api_key=self.anthropic_api_key)
+            AsyncAnthropic(
+                api_key=self.anthropic_api_key,
+                base_url=self.anthropic_base_url
+            )
             if self.anthropic_api_key
             else None
         )
         self.openai_client = (
-            AsyncOpenAI(api_key=self.openai_api_key) if self.openai_api_key else None
+            AsyncOpenAI(
+                api_key=self.openai_api_key,
+                base_url=self.openai_base_url
+            ) if self.openai_api_key else None
         )
 
         self.default_model = default_model
@@ -163,8 +177,11 @@ class LLMManager:
         if not self.anthropic_client:
             raise ValueError("Anthropic API key not configured")
 
+        # 使用自定义模型名称（如果配置了）
+        actual_model = self.anthropic_model_name or model
+
         response = await self.anthropic_client.messages.create(
-            model=model,
+            model=actual_model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -189,8 +206,11 @@ class LLMManager:
         if not self.anthropic_client:
             raise ValueError("Anthropic API key not configured")
 
+        # 使用自定义模型名称（如果配置了）
+        actual_model = self.anthropic_model_name or model
+
         async with self.anthropic_client.messages.stream(
-            model=model,
+            model=actual_model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -212,8 +232,11 @@ class LLMManager:
         if not self.openai_client:
             raise ValueError("OpenAI API key not configured")
 
+        # 使用自定义模型名称（如果配置了）
+        actual_model = self.openai_model_name or model
+
         response = await self.openai_client.chat.completions.create(
-            model=model,
+            model=actual_model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -240,8 +263,11 @@ class LLMManager:
         if not self.openai_client:
             raise ValueError("OpenAI API key not configured")
 
+        # 使用自定义模型名称（如果配置了）
+        actual_model = self.openai_model_name or model
+
         stream_response = await self.openai_client.chat.completions.create(
-            model=model,
+            model=actual_model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,

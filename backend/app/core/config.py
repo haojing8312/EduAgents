@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = Field(default="pbl_user", env="POSTGRES_USER")
     POSTGRES_PASSWORD: str = Field(..., env="POSTGRES_PASSWORD")
     POSTGRES_DB: str = Field(default="pbl_assistant", env="POSTGRES_DB")
+    POSTGRES_SCHEMA: str = Field(default="pbl_core", env="POSTGRES_SCHEMA")
 
     @property
     def DATABASE_URL(self) -> str:
@@ -52,6 +53,16 @@ class Settings(BaseSettings):
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"?options=-csearch_path={self.POSTGRES_SCHEMA}"
+        )
+
+    @property
+    def ASYNCPG_URL(self) -> str:
+        """构建asyncpg连接URL（用于测试脚本）"""
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"?options=-csearch_path={self.POSTGRES_SCHEMA}"
         )
 
     # Redis配置
@@ -103,17 +114,20 @@ class Settings(BaseSettings):
 
     # OpenAI配置
     OPENAI_API_KEY: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
-    OPENAI_API_BASE: Optional[str] = Field(default=None, env="OPENAI_API_BASE")
+    OPENAI_API_BASE: Optional[str] = Field(default="https://api.openai.com/v1", env="OPENAI_API_BASE")
     OPENAI_MODEL: str = Field(default="gpt-4-turbo-preview", env="OPENAI_MODEL")
+    OPENAI_MODEL_NAME: Optional[str] = Field(default=None, env="OPENAI_MODEL_NAME")  # 用于三方中转
     OPENAI_EMBEDDING_MODEL: str = Field(
         default="text-embedding-3-large", env="OPENAI_EMBEDDING_MODEL"
     )
 
     # Anthropic配置
     ANTHROPIC_API_KEY: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
+    ANTHROPIC_API_BASE: Optional[str] = Field(default="https://api.anthropic.com", env="ANTHROPIC_API_BASE")
     ANTHROPIC_MODEL: str = Field(
         default="claude-3-opus-20240229", env="ANTHROPIC_MODEL"
     )
+    ANTHROPIC_MODEL_NAME: Optional[str] = Field(default=None, env="ANTHROPIC_MODEL_NAME")  # 用于三方中转
 
     # Azure OpenAI配置
     AZURE_OPENAI_ENDPOINT: Optional[str] = Field(

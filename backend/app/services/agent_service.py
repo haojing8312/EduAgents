@@ -83,7 +83,7 @@ class AgentService:
 
     async def start_course_design(
         self, session_id: str, stream: bool = False
-    ) -> AsyncGenerator[Dict[str, Any], None] | Dict[str, Any]:
+    ):
         """
         Start the course design process
 
@@ -143,7 +143,7 @@ class AgentService:
                 session["progress"] = 100
                 session["result"] = result
 
-                return {
+                yield {
                     "session_id": session_id,
                     "status": "completed",
                     "result": result,
