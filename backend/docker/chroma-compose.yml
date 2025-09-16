@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # ChromaDB向量数据库
+  chromadb:
+    image: chromadb/chroma:0.4.15
+    container_name: pbl_chromadb
+    ports:
+      - "8001:8000"  # 避免与Supabase的8000端口冲突
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - PERSIST_DIRECTORY=/chroma/data
+      - ANONYMIZED_TELEMETRY=false
+    volumes:
+      - chroma_data:/chroma/data
+    networks:
+      - pbl_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Redis缓存（可选，如果不想使用外部Redis）
+  redis:
+    image: redis:7-alpine
+    container_name: pbl_redis
+    ports:
+      - "6380:6379"  # 使用不同端口避免冲突
+    command: >
+      --requirepass pbl_redis_2025
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis_data:/data
+    networks:
+      - pbl_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+# 网络配置
+networks:
+  pbl_network:
+    driver: bridge
+    external: false
+
+# 数据卷
+volumes:
+  chroma_data:
+    driver: local
+  redis_data:
+    driver: local
