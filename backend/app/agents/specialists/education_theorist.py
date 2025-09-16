@@ -100,7 +100,7 @@ into the course design system. Be specific, actionable, and evidence-based.
 
     async def _analyze_course_requirements(
         self, task: Dict[str, Any], state: AgentState, stream: bool
-    ) -> Dict[str, Any]:
+    ):
         """Analyze course requirements from pedagogical perspective"""
 
         requirements = task.get("requirements", {})
@@ -161,7 +161,7 @@ Provide a comprehensive pedagogical analysis including:
                 prompt, response_schema, self._system_prompts["framework_analysis"]
             )
 
-            return {
+            yield {
                 "type": "requirements_analysis",
                 "framework": result,
                 "timestamp": datetime.utcnow().isoformat(),

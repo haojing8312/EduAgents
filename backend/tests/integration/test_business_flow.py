@@ -32,9 +32,10 @@ fake = Faker('zh_CN')
 class BusinessFlowTester:
     """业务流程测试器"""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:48282"):
         self.base_url = base_url
-        self.client = httpx.AsyncClient(timeout=60.0)
+        # 创建httpx客户端时禁用环境变量代理，避免测试时的网络问题
+        self.client = httpx.AsyncClient(timeout=60.0, trust_env=False)
         self.session_data = {}
         self.test_results = {}
 
@@ -502,7 +503,7 @@ class BusinessFlowTester:
 async def main():
     """主函数"""
     # 从环境变量获取配置
-    base_url = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+    base_url = os.getenv("TEST_BASE_URL", "http://localhost:48282")
 
     # 创建测试器
     tester = BusinessFlowTester(base_url)
