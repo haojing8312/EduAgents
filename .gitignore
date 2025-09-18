@@ -188,3 +188,12 @@ backend/uploads/
 
 # ChromaDB data
 chroma_data/
+
+# Test reports and documentation
+test_reports/
+backend/tests/integration/test_reports/
+**/test_reports/
+*.test.md
+test_*.md
+*_test_report.*
+coverage_report.*
