@@ -6,6 +6,7 @@
 import os
 import json
 import uuid
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -19,11 +20,25 @@ from reportlab.platypus.flowables import PageBreak
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+# 新增：fpdf2中文PDF生成服务
+from .fpdf_chinese_service import generate_course_pdf
+
 from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from jinja2 import Template
+
+logger = logging.getLogger(__name__)
+
+
+def ensure_unicode_string(text: Any) -> str:
+    """确保文本是正确的Unicode字符串"""
+    if text is None:
+        return ""
+    if isinstance(text, (list, tuple)):
+        return ", ".join(str(item) for item in text)
+    return str(text)
 
 
 class EnhancedCourseExportService:
@@ -390,145 +405,37 @@ class EnhancedCourseExportService:
 
     async def _export_pdf(self, course_data: Dict[str, Any], filename_base: str,
                         include_resources: bool, include_assessments: bool) -> Dict[str, Any]:
-        """导出PDF格式"""
+        """导出PDF格式 - 使用fpdf2确保中文字符正确显示"""
 
         filename = f"{filename_base}.pdf"
         file_path = self.export_dir / "pdf" / filename
 
-        # 注册中文字体
+        # 使用新的fpdf2服务生成PDF
         try:
-            font_paths = [
-                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                "/System/Library/Fonts/PingFang.ttc"
-            ]
+            success = generate_course_pdf(course_data, str(file_path))
 
-            font_registered = False
-            for font_path in font_paths:
-                if os.path.exists(font_path):
-                    try:
-                        pdfmetrics.registerFont(TTFont('Chinese', font_path))
-                        font_registered = True
-                        break
-                    except:
-                        continue
+            if not success:
+                raise Exception("fpdf2生成PDF失败")
 
-            if not font_registered:
-                # 使用Unicode CID字体作为fallback
-                from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-                pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
-                font_name = 'STSong-Light'
-            else:
-                font_name = 'Chinese'
-        except:
-            font_name = 'Helvetica'
+            # 验证文件是否成功创建
+            if not os.path.exists(file_path):
+                raise Exception("PDF文件未成功创建")
 
-        doc = SimpleDocTemplate(str(file_path), pagesize=A4)
-        styles = getSampleStyleSheet()
+            file_size = os.path.getsize(file_path)
+            logger.info(f"✅ 使用fpdf2成功生成PDF: {file_path} ({file_size} bytes)")
 
-        # 自定义样式
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Title'],
-            fontSize=24,
-            spaceAfter=30,
-            textColor=colors.darkblue,
-            fontName=font_name if font_name != 'Helvetica' else 'Helvetica-Bold'
-        )
+            return {
+                "file_name": filename,
+                "file_path": str(file_path),
+                "file_size": f"{file_size / 1024:.1f}KB",
+                "format": "pdf",
+                "created_at": datetime.now().isoformat()
+            }
 
-        heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading1'],
-            fontSize=16,
-            spaceAfter=12,
-            textColor=colors.darkred,
-            fontName=font_name if font_name != 'Helvetica' else 'Helvetica-Bold'
-        )
-
-        normal_style = ParagraphStyle(
-            'CustomNormal',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=6,
-            fontName=font_name
-        )
-
-        story = []
-
-        # 标题
-        story.append(Paragraph(f"AI原生PBL课程设计", title_style))
-        story.append(Paragraph(f"{course_data.get('title', '未知课程')}", heading_style))
-        story.append(Spacer(1, 20))
-
-        # 基本信息
-        overview = course_data.get("overview", {})
-        basic_info = [
-            ["课程名称", course_data.get("title", "")],
-            ["主题概念", course_data.get("theme_concept", "")],
-            ["机构类型", overview.get("institution_type", "")],
-            ["参与人数", f"{overview.get('participants', 0)}人"],
-            ["课程时长", f"{overview.get('duration', 0)}小时"],
-            ["创建时间", datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
-        ]
-
-        info_table = Table(basic_info)
-        info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.lightblue),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, -1), font_name),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('BACKGROUND', (1, 0), (1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-
-        story.append(Paragraph("课程基本信息", heading_style))
-        story.append(info_table)
-        story.append(Spacer(1, 20))
-
-        # 学习目标
-        story.append(Paragraph("学习目标", heading_style))
-        for i, objective in enumerate(course_data.get("learning_objectives", []), 1):
-            story.append(Paragraph(f"{i}. {objective}", normal_style))
-        story.append(Spacer(1, 15))
-
-        # 项目驱动问题
-        story.append(Paragraph("项目驱动问题", heading_style))
-        story.append(Paragraph(course_data.get("driving_question", ""), normal_style))
-        story.append(Spacer(1, 15))
-
-        # 详细活动
-        story.append(Paragraph("详细活动设计", heading_style))
-        for activity in course_data.get("detailed_activities", []):
-            story.append(Paragraph(f"活动：{activity.get('title', '')} ({activity.get('duration_minutes', 0)}分钟)",
-                                 ParagraphStyle('ActivityTitle', parent=normal_style, fontSize=12, textColor=colors.darkred)))
-            story.append(Paragraph(f"目标：{activity.get('objective', '')}", normal_style))
-            story.append(Paragraph(f"AI工具：{', '.join(activity.get('ai_tools_used', []))}", normal_style))
-            story.append(Spacer(1, 10))
-
-        # 教师准备
-        teacher_prep = course_data.get("teacher_preparation", {})
-        if teacher_prep:
-            story.append(PageBreak())
-            story.append(Paragraph("教师准备指导", heading_style))
-
-            story.append(Paragraph("课前准备：", ParagraphStyle('SubHeading', parent=normal_style, fontSize=12, textColor=colors.darkblue)))
-            for prep in teacher_prep.get("pre_course_preparation", []):
-                story.append(Paragraph(f"• {prep}", normal_style))
-            story.append(Spacer(1, 10))
-
-        # 生成PDF
-        doc.build(story)
-        file_size = os.path.getsize(file_path)
-
-        return {
-            "file_name": filename,
-            "file_path": str(file_path),
-            "file_size": f"{file_size / 1024:.1f}KB",
-            "format": "pdf",
-            "created_at": datetime.now().isoformat()
-        }
+        except Exception as e:
+            logger.error(f"❌ fpdf2 PDF生成失败: {e}")
+            # 不降级到ReportLab，直接抛出错误
+            raise Exception(f"PDF生成失败: {str(e)}")
 
     async def _export_docx(self, course_data: Dict[str, Any], filename_base: str,
                          include_resources: bool, include_assessments: bool) -> Dict[str, Any]:
