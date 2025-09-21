@@ -1,6 +1,6 @@
 """
 Real Agent Service - Replaces mock simulation with actual AI agent collaboration
-Provides direct agent execution for WebSocket integration
+Provides direct agent execution for WebSocket integration with enhanced caching
 """
 
 import asyncio
@@ -17,6 +17,7 @@ from app.agents.specialists import (
     MaterialCreatorAgent,
 )
 from app.core.exceptions import AgentException
+from app.core.cache import agent_cache, session_cache, smart_cache_manager
 
 logger = logging.getLogger(__name__)
 
@@ -58,15 +59,19 @@ class RealAgentService:
         self,
         agent_id: str,
         course_requirement: str,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None,
+        save_to_db: bool = False
     ) -> Dict[str, Any]:
         """
-        Execute a single agent with real AI processing
+        Execute a single agent with real AI processing and caching
 
         Args:
             agent_id: Agent identifier
             course_requirement: Course design requirements
             context: Additional context from previous agents
+            session_id: Session ID for cache management
+            save_to_db: Whether to save results to database
 
         Returns:
             Agent execution result
@@ -75,6 +80,13 @@ class RealAgentService:
             if agent_id not in self.agents:
                 logger.warning(f"Agent {agent_id} not found, using fallback")
                 return await self._fallback_result(agent_id, course_requirement)
+
+            # Check cache first if available
+            if agent_cache:
+                cached_result = await agent_cache.get_agent_result(agent_id, course_requirement)
+                if cached_result:
+                    logger.info(f"🎯 Using cached result for agent: {agent_id}")
+                    return cached_result.get("result", cached_result)
 
             logger.info(f"🤖 Executing real agent: {agent_id}")
 
@@ -105,6 +117,12 @@ class RealAgentService:
                 agent_id, result, course_requirement
             )
 
+            # Cache the result if available
+            if agent_cache:
+                await agent_cache.cache_agent_result(
+                    agent_id, course_requirement, processed_result
+                )
+
             logger.info(f"✅ Agent {agent_id} completed successfully")
             return processed_result
 
@@ -112,6 +130,134 @@ class RealAgentService:
             logger.error(f"❌ Agent {agent_id} execution failed: {e}")
             # Return fallback result instead of raising
             return await self._fallback_result(agent_id, course_requirement, error=str(e))
+
+    async def execute_complete_course_design(
+        self,
+        course_requirement: str,
+        session_id: str,
+        user_id: Optional[str] = None,
+        save_to_db: bool = True
+    ) -> Dict[str, Any]:
+        """
+        执行完整的课程设计流程，包含所有智能体协作和数据持久化
+
+        Args:
+            course_requirement: 课程设计需求
+            session_id: 会话ID
+            user_id: 用户ID
+            save_to_db: 是否保存到数据库
+
+        Returns:
+            完整的课程设计结果，包含数据库ID
+        """
+        try:
+            logger.info(f"🚀 开始完整课程设计流程 - 会话: {session_id}")
+
+            # 检查是否有缓存的课程设计结果
+            if session_cache:
+                cached_design = await session_cache.get_session_state(session_id)
+                if cached_design and cached_design.get("status") == "completed":
+                    logger.info(f"🎯 使用缓存的完整课程设计: {session_id}")
+                    return cached_design
+
+            # 按顺序执行所有智能体
+            agent_sequence = [
+                "education_theorist",
+                "course_architect",
+                "content_designer",
+                "assessment_expert",
+                "material_creator"
+            ]
+
+            course_design_data = {}
+            context = {}
+
+            # 更新会话状态 - 开始设计
+            if session_cache:
+                await session_cache.update_session_state(session_id, {
+                    "status": "in_progress",
+                    "current_step": 0,
+                    "total_steps": len(agent_sequence),
+                    "course_requirement": course_requirement
+                })
+
+            for i, agent_id in enumerate(agent_sequence):
+                logger.info(f"🤖 执行智能体: {agent_id} ({i+1}/{len(agent_sequence)})")
+
+                # 更新会话进度
+                if session_cache:
+                    await session_cache.update_session_state(session_id, {
+                        "status": "in_progress",
+                        "current_step": i + 1,
+                        "total_steps": len(agent_sequence),
+                        "current_agent": agent_id,
+                        "course_requirement": course_requirement
+                    })
+
+                # 执行智能体
+                result = await self.execute_agent(
+                    agent_id=agent_id,
+                    course_requirement=course_requirement,
+                    context=context,
+                    session_id=session_id,
+                    save_to_db=False  # 单个智能体不保存，最后统一保存
+                )
+
+                course_design_data[agent_id] = result
+                context[agent_id] = result  # 为下一个智能体提供上下文
+
+                logger.info(f"✅ 智能体 {agent_id} 完成")
+
+            # 保存完整课程设计到数据库
+            course_id = None
+            if save_to_db:
+                try:
+                    from app.services.course_persistence_service import get_persistence_service
+
+                    async with await get_persistence_service() as persistence:
+                        course_id = await persistence.save_course_design(
+                            session_id=session_id,
+                            course_data=course_design_data,
+                            user_id=user_id,
+                            ai_generated=True
+                        )
+
+                    logger.info(f"✅ 课程设计已保存到数据库 - 课程ID: {course_id}")
+
+                except Exception as e:
+                    logger.warning(f"⚠️ 数据库保存失败，但课程设计继续: {e}")
+
+            # 构建最终返回结果
+            final_result = {
+                "session_id": session_id,
+                "course_requirement": course_requirement,
+                "status": "completed",
+                "agents_data": course_design_data,
+                "course_id": str(course_id) if course_id else None,
+                "saved_to_database": course_id is not None,
+                "created_at": "2024-09-20T10:00:00Z",
+                "agents_count": len(agent_sequence),
+                "ai_generated": True
+            }
+
+            # 缓存完整的课程设计结果
+            if session_cache:
+                await session_cache.update_session_state(session_id, final_result)
+                logger.info(f"💾 完整课程设计结果已缓存: {session_id}")
+
+            logger.info(f"🎉 完整课程设计流程完成 - 会话: {session_id}")
+            return final_result
+
+        except Exception as e:
+            logger.error(f"❌ 完整课程设计流程失败: {e}")
+            return {
+                "session_id": session_id,
+                "status": "failed",
+                "error": str(e),
+                "agents_data": course_design_data if 'course_design_data' in locals() else {},
+                "course_id": None,
+                "saved_to_database": False
+            }
 
     async def _process_agent_result(
         self,

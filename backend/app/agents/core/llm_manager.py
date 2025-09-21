@@ -1,6 +1,6 @@
 """
 LLM Manager - Dual-model strategy with Claude and GPT-4o
-Implements intelligent model selection, fallback mechanisms, and token optimization
+Implements intelligent model selection, fallback mechanisms, token optimization, and LLM response caching
 """
 
 import asyncio
@@ -139,6 +139,10 @@ class LLMManager:
 
         # Initialize tokenizers
         self.gpt_tokenizer = tiktoken.encoding_for_model("gpt-4o")
+
+        # Cache integration
+        self.enable_caching = True
+        self._llm_cache = None
 
     def select_model_for_task(
         self, required_capabilities: List[ModelCapability], prefer_speed: bool = False
@@ -306,6 +310,33 @@ class LLMManager:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        # Check cache first (only for non-streaming requests)
+        if not stream and self.enable_caching:
+            # Initialize cache if needed
+            if self._llm_cache is None:
+                try:
+                    from app.core.cache import llm_cache
+                    self._llm_cache = llm_cache
+                except ImportError:
+                    pass  # Cache not available
+
+            # Check for cached response
+            if self._llm_cache:
+                # Create cache key from combined prompt
+                full_prompt = f"{system_prompt or ''}\n\n{prompt}"
+                cached_response = await self._llm_cache.get_llm_response(
+                    full_prompt, model.value
+                )
+                if cached_response:
+                    # Return cached response wrapped in LLMResponse
+                    return LLMResponse(
+                        content=cached_response,
+                        model_used=model.value,
+                        tokens_used=0,  # No new tokens used
+                        latency_ms=0.1,  # Minimal cache lookup time
+                        metadata={"cached": True, "cache_hit": True}
+                    )
+
         # Track request
         self.request_count += 1
         start_time = datetime.utcnow()
@@ -336,6 +367,13 @@ class LLMManager:
                 # Calculate metrics
                 latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
+                # Cache the response
+                if self.enable_caching and self._llm_cache:
+                    full_prompt = f"{system_prompt or ''}\n\n{prompt}"
+                    await self._llm_cache.cache_llm_response(
+                        full_prompt, model.value, result
+                    )
+
                 return LLMResponse(
                     content=result,
                     model_used=model.value,
@@ -344,6 +382,8 @@ class LLMManager:
                     metadata={
                         "temperature": temperature,
                         "capabilities": required_capabilities,
+                        "cached": False,
+                        "cache_hit": False
                     },
                 )
 

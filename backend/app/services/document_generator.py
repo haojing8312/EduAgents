@@ -16,15 +16,34 @@ from typing import Any, BinaryIO, Dict, List, Optional, Union
 
 import markdown
 
-# 文档生成依赖
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-from markdown.extensions import codehilite, tables, toc
-from pptx import Presentation
-from pptx.util import Inches as PptxInches
-from docx import Document
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-from docx.shared import Inches, Pt
-from weasyprint import CSS, HTML
+# 文档生成依赖 - 优雅降级处理
+try:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    from markdown.extensions import codehilite, tables, toc
+    JINJA2_AVAILABLE = True
+except ImportError:
+    JINJA2_AVAILABLE = False
+
+try:
+    from pptx import Presentation
+    from pptx.util import Inches as PptxInches
+    PPTX_AVAILABLE = True
+except ImportError:
+    PPTX_AVAILABLE = False
+
+try:
+    from docx import Document
+    from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+    from docx.shared import Inches, Pt
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
+try:
+    from weasyprint import CSS, HTML
+    WEASYPRINT_AVAILABLE = True
+except ImportError:
+    WEASYPRINT_AVAILABLE = False
 
 from ..core.config import settings
 from ..models.course import Assessment, Course, Lesson, Resource

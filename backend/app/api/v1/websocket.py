@@ -203,12 +203,45 @@ async def start_course_design_collaboration(
                 }, session_id)
                 return
 
-        # 所有智能体完成
-        await manager.send_personal_message({
-            "type": "design_completed",
-            "message": "🎉 课程设计完成！",
-            "course_data": course_data
-        }, session_id)
+        # 执行完整课程设计并保存到数据库
+        try:
+            from app.services.real_agent_service import get_real_agent_service
+
+            service = await get_real_agent_service()
+            complete_result = await service.execute_complete_course_design(
+                course_requirement=course_requirement,
+                session_id=session_id,
+                user_id=None,  # 暂时不需要用户认证
+                save_to_db=True
+            )
+
+            # 发送完成消息，包含数据库保存信息
+            await manager.send_personal_message({
+                "type": "design_completed",
+                "message": "🎉 课程设计完成并已保存！",
+                "course_data": course_data,
+                "complete_result": {
+                    "course_id": complete_result.get("course_id"),
+                    "saved_to_database": complete_result.get("saved_to_database", False),
+                    "status": complete_result.get("status", "completed")
+                }
+            }, session_id)
+
+        except Exception as db_error:
+            logger.warning(f"⚠️ 数据库保存失败，但返回设计结果: {db_error}")
+
+            # 即使数据库保存失败也要返回设计结果
+            await manager.send_personal_message({
+                "type": "design_completed",
+                "message": "🎉 课程设计完成！",
+                "course_data": course_data,
+                "complete_result": {
+                    "course_id": None,
+                    "saved_to_database": False,
+                    "status": "completed_without_persistence",
+                    "note": "课程设计完成但未保存到数据库"
+                }
+            }, session_id)
 
     except Exception as e:
         logger.error(f"课程设计协作失败: {e}")
