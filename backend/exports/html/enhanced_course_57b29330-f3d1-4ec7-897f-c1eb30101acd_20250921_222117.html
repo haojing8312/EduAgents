@@ -1,0 +1,632 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的超能分身 - AI原生PBL课程设计</title>
+    <style>
+        body { font-family: "微软雅黑", Arial, sans-serif; margin: 40px; line-height: 1.8; background-color: #fafafa; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 20px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #3498db; padding-bottom: 20px; }
+        .title { color: #2c3e50; font-size: 32px; margin-bottom: 10px; font-weight: bold; }
+        .subtitle { color: #34495e; font-size: 22px; margin-bottom: 5px; }
+        .theme { color: #e74c3c; font-size: 18px; font-style: italic; }
+        .section { margin-bottom: 35px; }
+        .section-title { color: #2980b9; font-size: 20px; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-bottom: 15px; font-weight: bold; }
+        .info-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .info-table th, .info-table td { border: 1px solid #ddd; padding: 15px; text-align: left; }
+        .info-table th { background-color: #f8f9fa; font-weight: bold; color: #2c3e50; }
+        .info-table td { background-color: #ffffff; }
+        .objective-list { list-style-type: decimal; padding-left: 25px; }
+        .objective-list li { margin-bottom: 8px; padding: 5px; background-color: #f8f9fa; border-radius: 5px; }
+        .activity-card { margin: 20px 0; padding: 20px; background-color: #f1f2f6; border-radius: 8px; border-left: 5px solid #e74c3c; }
+        .activity-title { color: #e74c3c; font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+        .activity-content { margin-bottom: 10px; }
+        .activity-steps { margin: 10px 0; padding-left: 20px; }
+        .activity-steps li { margin-bottom: 5px; }
+        .time-slot { display: flex; margin: 10px 0; padding: 15px; background-color: #e8f5e8; border-radius: 5px; align-items: center; }
+        .time-info { font-weight: bold; color: #27ae60; min-width: 200px; }
+        .time-activity { color: #2c3e50; }
+        .ai-tool-card { margin: 15px 0; padding: 20px; background-color: #fff3cd; border-radius: 8px; border: 1px solid #ffeaa7; }
+        .ai-tool-name { color: #d63031; font-weight: bold; font-size: 16px; }
+        .teacher-prep { background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 15px 0; }
+        .prep-category { margin-bottom: 15px; }
+        .prep-title { font-weight: bold; color: #1976d2; margin-bottom: 8px; }
+        .prep-list { list-style-type: disc; padding-left: 20px; }
+        .prep-list li { margin-bottom: 5px; }
+        .quality-metrics { background-color: #e8f5e8; padding: 20px; border-radius: 8px; text-align: center; }
+        .metric { display: inline-block; margin: 10px; padding: 10px 20px; background-color: #27ae60; color: white; border-radius: 5px; font-weight: bold; }
+        .footer { margin-top: 50px; text-align: center; color: #7f8c8d; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">AI原生PBL课程设计</h1>
+            <h2 class="subtitle">我的超能分身</h2>
+            <p class="theme">让孩子们想象在平行宇宙中拥有超能力的自己，并使用AI工具将想象变为现实</p>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">课程基本信息</h3>
+            <table class="info-table">
+                <tr><th>课程名称</th><td>我的超能分身</td></tr>
+                <tr><th>主题概念</th><td>让孩子们想象在平行宇宙中拥有超能力的自己，并使用AI工具将想象变为现实</td></tr>
+                <tr><th>机构类型</th><td>maker_space</td></tr>
+                <tr><th>参与人数</th><td>12人</td></tr>
+                <tr><th>目标年龄</th><td>primary_upper</td></tr>
+                <tr><th>课程时长</th><td>7小时</td></tr>
+                <tr><th>创建时间</th><td>2025-09-21 22:21:17</td></tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">学习目标</h3>
+            <ol class="objective-list">
+                
+                <li>掌握4种AI工具的基本使用方法</li>
+                
+                <li>学会与AI协作完成创意项目</li>
+                
+                <li>培养数字时代的问题解决能力</li>
+                
+                <li>提升团队协作和沟通表达能力</li>
+                
+                <li>掌握3D建模和3D打印的基础技能</li>
+                
+                <li>了解机械臂操作和自动化控制</li>
+                
+            </ol>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">项目驱动问题</h3>
+            <p style="font-size: 18px; color: #2c3e50; background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid #3498db;"><strong>如何通过让孩子们想象在平行宇宙中拥有超能力的自己，并使用AI工具将想象变为现实项目，掌握AI时代的核心能力？</strong></p>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">详细时间安排</h3>
+            
+            <div class="time-slot">
+                <div class="time-info">09:00 - 09:30 (30分钟)</div>
+                <div class="time-activity">开场破冰</div>
+            </div>
+            
+            <div class="time-slot">
+                <div class="time-info">09:30 - 10:30 (60分钟)</div>
+                <div class="time-activity">主题探索</div>
+            </div>
+            
+            <div class="time-slot">
+                <div class="time-info">10:30 - 10:45 (15分钟)</div>
+                <div class="time-activity">茶歇</div>
+            </div>
+            
+            <div class="time-slot">
+                <div class="time-info">10:45 - 12:00 (75分钟)</div>
+                <div class="time-activity">AI工具学习和实践</div>
+            </div>
+            
+            <div class="time-slot">
+                <div class="time-info">12:00 - 13:30 (90分钟)</div>
+                <div class="time-activity">午餐休息</div>
+            </div>
+            
+            <div class="time-slot">
+                <div class="time-info">13:30 - 15:30 (120分钟)</div>
+                <div class="time-activity">项目制作和协作</div>
+            </div>
+            
+            <div class="time-slot">
+                <div class="time-info">15:30 - 15:45 (15分钟)</div>
+                <div class="time-activity">茶歇</div>
+            </div>
+            
+            <div class="time-slot">
+                <div class="time-info">15:45 - 17:00 (75分钟)</div>
+                <div class="time-activity">成果完善和展示</div>
+            </div>
+            
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">详细活动设计</h3>
+            
+            <div class="activity-card">
+                <div class="activity-title">超能力设定工作坊 (60分钟)</div>
+                <div class="activity-content"><strong>目标：</strong>帮助学生构思并设定自己的超能力角色</div>
+                <div class="activity-content"><strong>所需材料：</strong>白纸, 彩笔, 电脑, AI绘画工具</div>
+                <div class="activity-content"><strong>AI工具：</strong>ChatGPT, Midjourney</div>
+                <div class="activity-content">
+                    <strong>详细步骤：</strong>
+                    <ol class="activity-steps">
+                        
+                        <li>1. 引导学生思考：如果有超能力，你想拥有什么？(10分钟)</li>
+                        
+                        <li>2. 使用ChatGPT帮助完善超能力设定和背景故事(20分钟)</li>
+                        
+                        <li>3. 用Midjourney生成超能力角色的视觉形象(20分钟)</li>
+                        
+                        <li>4. 小组分享各自的超能力设定(10分钟)</li>
+                        
+                    </ol>
+                </div>
+                
+                <div class="activity-content">
+                    <strong>教师注意事项：</strong>
+                    <ul class="activity-steps">
+                        
+                        <li>鼓励学生发挥想象力，不要限制创意</li>
+                        
+                        <li>帮助学生学会与AI对话的技巧</li>
+                        
+                        <li>注意时间控制，确保每个学生都有机会尝试</li>
+                        
+                    </ul>
+                </div>
+                
+            </div>
+            
+            <div class="activity-card">
+                <div class="activity-title">身份卡设计制作 (90分钟)</div>
+                <div class="activity-content"><strong>目标：</strong>使用AI工具制作专业的超能力身份卡</div>
+                <div class="activity-content"><strong>所需材料：</strong>电脑, 打印机, 卡纸, 设计软件</div>
+                <div class="activity-content"><strong>AI工具：</strong>Canva AI, ChatGPT</div>
+                <div class="activity-content">
+                    <strong>详细步骤：</strong>
+                    <ol class="activity-steps">
+                        
+                        <li>1. 使用ChatGPT生成身份卡的详细信息(姓名、能力、等级等)(15分钟)</li>
+                        
+                        <li>2. 学习Canva AI的基本操作(15分钟)</li>
+                        
+                        <li>3. 使用Canva AI设计身份卡模板(30分钟)</li>
+                        
+                        <li>4. 添加之前生成的角色图像和信息(20分钟)</li>
+                        
+                        <li>5. 打印和制作实体身份卡(10分钟)</li>
+                        
+                    </ol>
+                </div>
+                
+                <div class="activity-content">
+                    <strong>教师注意事项：</strong>
+                    <ul class="activity-steps">
+                        
+                        <li>提前准备Canva账号，确保学生能够登录</li>
+                        
+                        <li>准备一些身份卡模板作为参考</li>
+                        
+                        <li>指导学生注意排版和配色</li>
+                        
+                    </ul>
+                </div>
+                
+            </div>
+            
+            <div class="activity-card">
+                <div class="activity-title">3D超能力道具建模 (120分钟)</div>
+                <div class="activity-content"><strong>目标：</strong>为超能力角色设计并3D建模专属道具</div>
+                <div class="activity-content"><strong>所需材料：</strong>电脑, 3D建模软件, 3D打印机</div>
+                <div class="activity-content"><strong>AI工具：</strong>Meshy AI, ChatGPT</div>
+                <div class="activity-content">
+                    <strong>详细步骤：</strong>
+                    <ol class="activity-steps">
+                        
+                        <li>1. 与ChatGPT讨论超能力道具的设计思路(15分钟)</li>
+                        
+                        <li>2. 学习Meshy AI的基本操作(20分钟)</li>
+                        
+                        <li>3. 使用文字描述生成3D模型草案(30分钟)</li>
+                        
+                        <li>4. 调整和优化3D模型(30分钟)</li>
+                        
+                        <li>5. 准备3D打印文件(15分钟)</li>
+                        
+                        <li>6. 启动3D打印(如果时间允许)(10分钟)</li>
+                        
+                    </ol>
+                </div>
+                
+                <div class="activity-content">
+                    <strong>教师注意事项：</strong>
+                    <ul class="activity-steps">
+                        
+                        <li>提前测试3D建模软件和打印机</li>
+                        
+                        <li>准备一些简单的3D模型示例</li>
+                        
+                        <li>指导学生选择合适的打印尺寸</li>
+                        
+                    </ul>
+                </div>
+                
+            </div>
+            
+            <div class="activity-card">
+                <div class="activity-title">成果展示准备 (45分钟)</div>
+                <div class="activity-content"><strong>目标：</strong>准备项目成果的展示和演讲</div>
+                <div class="activity-content"><strong>所需材料：</strong>投影仪, 电脑, 展示台</div>
+                <div class="activity-content"><strong>AI工具：</strong>ChatGPT, AI演示工具</div>
+                <div class="activity-content">
+                    <strong>详细步骤：</strong>
+                    <ol class="activity-steps">
+                        
+                        <li>1. 整理项目成果(身份卡、3D模型等)(10分钟)</li>
+                        
+                        <li>2. 使用ChatGPT构思展示演讲内容(15分钟)</li>
+                        
+                        <li>3. 练习演讲和展示(15分钟)</li>
+                        
+                        <li>4. 最后检查和准备(5分钟)</li>
+                        
+                    </ol>
+                </div>
+                
+                <div class="activity-content">
+                    <strong>教师注意事项：</strong>
+                    <ul class="activity-steps">
+                        
+                        <li>鼓励学生自信展示</li>
+                        
+                        <li>帮助内向的学生克服紧张</li>
+                        
+                        <li>控制每个学生的展示时间</li>
+                        
+                    </ul>
+                </div>
+                
+            </div>
+            
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">AI工具使用指导</h3>
+            
+            <div class="ai-tool-card">
+                <div class="ai-tool-name">ChatGPT</div>
+                <p><strong>描述：</strong>强大的AI对话助手，帮助头脑风暴和内容创作</p>
+                <p><strong>使用场景：</strong>创意构思, 文案写作, 问题解答, 学习辅导</p>
+                <div>
+                    <strong>使用教程：</strong>
+                    <ol style="margin-top: 5px;">
+                        
+                        <li>1. 访问 chat.openai.com</li>
+                        
+                        <li>2. 注册或登录账号</li>
+                        
+                        <li>3. 在对话框中输入你的问题或需求</li>
+                        
+                        <li>4. 点击发送，等待AI回复</li>
+                        
+                        <li>5. 可以继续对话，深入讨论</li>
+                        
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="ai-tool-card">
+                <div class="ai-tool-name">Midjourney</div>
+                <p><strong>描述：</strong>顶级AI绘画工具，可以生成高质量的艺术作品</p>
+                <p><strong>使用场景：</strong>角色设计, 场景绘制, 概念图, 插画创作</p>
+                <div>
+                    <strong>使用教程：</strong>
+                    <ol style="margin-top: 5px;">
+                        
+                        <li>1. 加入Midjourney的Discord服务器</li>
+                        
+                        <li>2. 在指定频道输入 /imagine 命令</li>
+                        
+                        <li>3. 输入英文描述你想要的图像</li>
+                        
+                        <li>4. 等待AI生成4个选项</li>
+                        
+                        <li>5. 选择喜欢的版本进行放大或变体</li>
+                        
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="ai-tool-card">
+                <div class="ai-tool-name">Meshy AI</div>
+                <p><strong>描述：</strong>AI驱动的3D建模工具，可以从文字描述生成3D模型</p>
+                <p><strong>使用场景：</strong>道具建模, 角色模型, 场景建模, 产品原型</p>
+                <div>
+                    <strong>使用教程：</strong>
+                    <ol style="margin-top: 5px;">
+                        
+                        <li>1. 访问 meshy.ai 网站</li>
+                        
+                        <li>2. 注册并登录账号</li>
+                        
+                        <li>3. 选择 'Text to 3D' 功能</li>
+                        
+                        <li>4. 输入详细的英文描述</li>
+                        
+                        <li>5. 选择模型风格和质量</li>
+                        
+                        <li>6. 等待生成完成</li>
+                        
+                        <li>7. 下载3D模型文件</li>
+                        
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="ai-tool-card">
+                <div class="ai-tool-name">Suno AI</div>
+                <p><strong>描述：</strong>AI音乐创作工具，可以根据描述生成完整歌曲</p>
+                <p><strong>使用场景：</strong>主题歌创作, 背景音乐, 音效制作, 音乐教学</p>
+                <div>
+                    <strong>使用教程：</strong>
+                    <ol style="margin-top: 5px;">
+                        
+                        <li>1. 访问 suno.ai 网站</li>
+                        
+                        <li>2. 注册并登录账号</li>
+                        
+                        <li>3. 点击 'Create' 开始创作</li>
+                        
+                        <li>4. 输入歌曲描述或歌词</li>
+                        
+                        <li>5. 选择音乐风格和长度</li>
+                        
+                        <li>6. 点击生成，等待完成</li>
+                        
+                        <li>7. 试听并下载满意的作品</li>
+                        
+                    </ol>
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">教师准备指导</h3>
+            <div class="teacher-prep">
+                <div class="prep-category">
+                    <div class="prep-title">技能要求</div>
+                    <ul class="prep-list">
+                        
+                        <li>基本的电脑操作能力</li>
+                        
+                        <li>简单的项目管理技能</li>
+                        
+                        <li>学生沟通和引导能力</li>
+                        
+                        <li>AI工具的基础概念理解</li>
+                        
+                        <li>简单的网页操作能力</li>
+                        
+                        <li>学会基本的故障排除方法</li>
+                        
+                        <li>掌握学生分组和时间管理技巧</li>
+                        
+                    </ul>
+                </div>
+
+                <div class="prep-category">
+                    <div class="prep-title">课前准备</div>
+                    <ul class="prep-list">
+                        
+                        <li>提前注册和测试所有AI工具账号</li>
+                        
+                        <li>准备示例项目作为参考</li>
+                        
+                        <li>检查所有硬件设备的工作状态</li>
+                        
+                        <li>准备材料清单并确保充足库存</li>
+                        
+                        <li>设计分组方案和座位安排</li>
+                        
+                        <li>制作课程时间表并打印分发</li>
+                        
+                        <li>准备应急方案和备用活动</li>
+                        
+                        <li>联系技术支持人员待命</li>
+                        
+                        <li>📺 观看AI工具使用教程视频</li>
+                        
+                        <li>👥 找一位AI工具熟练的同事作为协助</li>
+                        
+                        <li>📅 提前一周开始每天练习使用AI工具</li>
+                        
+                        <li>📋 准备详细的操作步骤卡片</li>
+                        
+                        <li>❓ 制作常见问题解答手册</li>
+                        
+                        <li>🎯 进行模拟课堂演练</li>
+                        
+                        <li>📞 建立技术支持联系群</li>
+                        
+                        <li>⏰ 制作详细的时间管理表</li>
+                        
+                        <li>🔧 准备故障排除快速指南</li>
+                        
+                        <li>👶 为初学者教师制作简化版操作流程</li>
+                        
+                    </ul>
+                </div>
+
+                <div class="prep-category">
+                    <div class="prep-title">材料清单</div>
+                    <ul class="prep-list">
+                        
+                        <li>电脑 x 12台</li>
+                        
+                        <li>稳定的网络连接</li>
+                        
+                        <li>投影设备</li>
+                        
+                        <li>白纸和彩笔</li>
+                        
+                        <li>打印机和纸张</li>
+                        
+                        <li>3D打印机耗材(PLA线材)</li>
+                        
+                        <li>3D打印工具套装</li>
+                        
+                        <li>机械臂控制软件</li>
+                        
+                    </ul>
+                </div>
+
+                <div class="prep-category">
+                    <div class="prep-title">应急预案</div>
+                    <ul class="prep-list">
+                        
+                        <li>如果网络断线，准备离线活动</li>
+                        
+                        <li>如果AI工具无法访问，准备传统创作方法</li>
+                        
+                        <li>如果硬件故障，调整项目难度</li>
+                        
+                        <li>如果学生进度差异大，准备分层活动</li>
+                        
+                        <li>如果时间不够，准备简化版本</li>
+                        
+                        <li>如果学生对AI工具畏惧，先从简单体验开始</li>
+                        
+                        <li>准备纸质版的创作模板作为备选</li>
+                        
+                        <li>联系学校IT支持的应急联系方式</li>
+                        
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="section">
+            <h3 class="section-title">评估体系</h3>
+            
+            <div class="activity-card">
+                <div class="activity-title">过程评估 (权重: 40%)</div>
+                <div class="activity-content">
+                    <strong>评估方法：</strong>
+                    <ul class="activity-steps">
+                        
+                        <li>观察学生AI工具使用情况</li>
+                        
+                        <li>记录团队协作表现</li>
+                        
+                        <li>检查项目进展</li>
+                        
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="activity-card">
+                <div class="activity-title">成果评估 (权重: 40%)</div>
+                <div class="activity-content">
+                    <strong>评估方法：</strong>
+                    <ul class="activity-steps">
+                        
+                        <li>评价最终作品质量</li>
+                        
+                        <li>检查交付物完整性</li>
+                        
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="activity-card">
+                <div class="activity-title">展示评估 (权重: 20%)</div>
+                <div class="activity-content">
+                    <strong>评估方法：</strong>
+                    <ul class="activity-steps">
+                        
+                        <li>学生演讲展示</li>
+                        
+                        <li>同伴互评</li>
+                        
+                    </ul>
+                </div>
+            </div>
+            
+        </div>
+        
+
+        
+        <div class="section">
+            <h3 class="section-title">所需材料和资源</h3>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h4 style="color: #2980b9;">必需材料</h4>
+                    <ul class="prep-list">
+                        
+                        <li>电脑 x 12台</li>
+                        
+                        <li>稳定的网络连接</li>
+                        
+                        <li>投影设备和音响</li>
+                        
+                        <li>白纸和彩色笔</li>
+                        
+                        <li>打印机和A4纸</li>
+                        
+                        <li>3D打印机</li>
+                        
+                        <li>PLA打印耗材</li>
+                        
+                        <li>3D打印工具</li>
+                        
+                        <li>机械臂</li>
+                        
+                        <li>控制软件</li>
+                        
+                        <li>安全防护用品</li>
+                        
+                        <li>数码相机或摄像设备</li>
+                        
+                        <li>三脚架</li>
+                        
+                        <li>存储卡</li>
+                        
+                    </ul>
+                </div>
+                <div style="flex: 1;">
+                    <h4 style="color: #2980b9;">可选材料</h4>
+                    <ul class="prep-list">
+                        
+                        <li>装饰材料（贴纸、亮片等）</li>
+                        
+                        <li>展示用的展板或画架</li>
+                        
+                        <li>小礼品作为鼓励奖励</li>
+                        
+                        <li>即拍即贴相机记录过程</li>
+                        
+                        <li>背景音乐播放设备</li>
+                        
+                        <li>茶点和饮料</li>
+                        
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="section">
+            <h3 class="section-title">预期成果</h3>
+            <ul class="prep-list">
+                
+                <li style="font-size: 16px; font-weight: bold; color: #e74c3c;">身份卡</li>
+                
+                <li style="font-size: 16px; font-weight: bold; color: #e74c3c;">3D模型</li>
+                
+                <li style="font-size: 16px; font-weight: bold; color: #e74c3c;">演示视频</li>
+                
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>本课程由AI原生多智能体PBL课程设计系统生成</p>
+            <p>生成时间: 2025-09-21 22:21:17</p>
+            <p>系统版本: Enhanced Course Design System v2.0</p>
+        </div>
+    </div>
+</body>
+</html>
+        

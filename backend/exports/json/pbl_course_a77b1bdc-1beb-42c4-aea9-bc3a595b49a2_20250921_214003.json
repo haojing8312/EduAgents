@@ -1,0 +1,264 @@
+{
+  "course_id": "a77b1bdc-1beb-42c4-aea9-bc3a595b49a2",
+  "title": "AI时代可持续发展教育",
+  "description": "面向高中生的AI与可持续发展跨学科PBL项目，培养全球视野和社会责任感",
+  "subject": "综合实践",
+  "education_level": "senior",
+  "grade_levels": [
+    10,
+    11,
+    12
+  ],
+  "duration_weeks": 8,
+  "duration_hours": 32,
+  "learning_objectives": [
+    "人机协作学习原理",
+    "元认知发展理论",
+    "创造性思维培养",
+    "数字素养基础"
+  ],
+  "phases": [
+    {
+      "name": "认知唤醒期",
+      "duration": "2周",
+      "activities": [
+        "学习活动"
+      ],
+      "ai_tools": [
+        "AI工具"
+      ]
+    },
+    {
+      "name": "技能建构期",
+      "duration": "4周",
+      "activities": [
+        "学习活动"
+      ],
+      "ai_tools": [
+        "AI工具"
+      ]
+    },
+    {
+      "name": "应用实践期",
+      "duration": "2周",
+      "activities": [
+        "学习活动"
+      ],
+      "ai_tools": [
+        "AI工具"
+      ]
+    }
+  ],
+  "driving_question": "如何运用AI技术促进联合国可持续发展目标的实现？",
+  "final_products": [
+    "AI伦理辩论赛",
+    "智慧城市设计挑战"
+  ],
+  "assessments": [
+    {
+      "type": "formative",
+      "name": "过程性评估",
+      "methods": [
+        "学习日志",
+        "同伴互评",
+        "教师观察"
+      ],
+      "weight": 0.4
+    },
+    {
+      "type": "summative",
+      "name": "终结性评估",
+      "methods": [
+        "项目作品",
+        "答辩展示",
+        "书面报告"
+      ],
+      "weight": 0.6
+    }
+  ],
+  "resources": [
+    {
+      "type": "交互式课件",
+      "title": "支持AI辅助学习的多媒体课件",
+      "description": "支持AI辅助学习的多媒体课件"
+    },
+    {
+      "type": "项目工具包",
+      "title": "学生项目实践所需的数字工具集",
+      "description": "学生项目实践所需的数字工具集"
+    }
+  ],
+  "technology_requirements": [
+    "计算机/平板电脑",
+    "互联网连接",
+    "AI工具平台账号",
+    "协作软件工具"
+  ],
+  "teacher_preparation": [
+    "AI工具使用培训",
+    "PBL教学方法学习",
+    "学生分组策略",
+    "项目管理技巧"
+  ],
+  "quality_metrics": {
+    "ai_competency_coverage": 0.95,
+    "pbl_methodology_score": 0.92,
+    "content_richness": 0.88,
+    "assessment_authenticity": 0.9,
+    "resource_completeness": 0.85
+  },
+  "created_at": "2025-09-21T21:40:03.184848",
+  "design_agents": [
+    "education_theorist",
+    "course_architect",
+    "content_designer",
+    "assessment_expert",
+    "material_creator"
+  ],
+  "ai_native": true,
+  "competency_based": true,
+  "session_id": "a4aa6c6f-00ef-4139-a045-a880b4093d07",
+  "agent_collaboration_data": {
+    "education_theorist": {
+      "agent_id": "education_theorist",
+      "status": "completed_with_fallback",
+      "course_requirement": "课程标题：AI时代可持续发展教育\n课程描述：面向高中生的AI与可持续发展跨学科PBL项目，培养全球视野和社会责任感\n教育层级：senior\n课程周期：8周\n\n请设计一个符合AI时代核心能力培养目标的PBL课程，重点关注：\n1. 人机协作能力培养\n2. 元认知与自主学习\n3. 创造性问题解决\n4. 数字素养与计算思维\n5. 情感智能与人文关怀\n6. 项目管理与执行能力\n\n课程应该包含完整的项目式学习设计，真实的驱动问题，多元化的评估体系，以及丰富的数字化学习资源。",
+      "fallback": true,
+      "error": "object async_generator can't be used in 'await' expression",
+      "theory_framework": {
+        "name": "AI时代教育理论框架",
+        "principles": [
+          "人机协作学习",
+          "元认知发展",
+          "创造性思维培养",
+          "数字素养基础"
+        ],
+        "approach": "项目式学习 + AI辅助探究"
+      },
+      "learning_principles": [
+        "人机协作学习原理",
+        "元认知发展理论",
+        "创造性思维培养",
+        "数字素养基础"
+      ],
+      "pedagogical_approach": "项目式学习 + AI辅助探究",
+      "course_requirement_analysis": "基于需求分析：课程标题：AI时代可持续发展教育\n课程描述：面向高中生的AI与可持续发展跨学科PBL项目，培养全球视野和社会责任感\n教育层级：senior\n课程周期：8周\n\n请设计一个符合AI时代核心能力培养目标的P..."
+    },
+    "course_architect": {
+      "agent_id": "course_architect",
+      "status": "completed_with_fallback",
+      "course_requirement": "课程标题：AI时代可持续发展教育\n课程描述：面向高中生的AI与可持续发展跨学科PBL项目，培养全球视野和社会责任感\n教育层级：senior\n课程周期：8周\n\n请设计一个符合AI时代核心能力培养目标的PBL课程，重点关注：\n1. 人机协作能力培养\n2. 元认知与自主学习\n3. 创造性问题解决\n4. 数字素养与计算思维\n5. 情感智能与人文关怀\n6. 项目管理与执行能力\n\n课程应该包含完整的项目式学习设计，真实的驱动问题，多元化的评估体系，以及丰富的数字化学习资源。",
+      "fallback": true,
+      "error": "object async_generator can't be used in 'await' expression",
+      "course_structure": {
+        "phases": [
+          {
+            "name": "认知唤醒期",
+            "duration": "2周",
+            "focus": "AI时代意识培养"
+          },
+          {
+            "name": "技能建构期",
+            "duration": "4周",
+            "focus": "核心能力发展"
+          },
+          {
+            "name": "应用实践期",
+            "duration": "2周",
+            "focus": "综合项目实践"
+          }
+        ],
+        "learning_path": "螺旋式递进，理论与实践并重"
+      },
+      "interdisciplinary_design": "科学+技术+人文+艺术整合"
+    },
+    "content_designer": {
+      "agent_id": "content_designer",
+      "status": "completed_with_fallback",
+      "course_requirement": "课程标题：AI时代可持续发展教育\n课程描述：面向高中生的AI与可持续发展跨学科PBL项目，培养全球视野和社会责任感\n教育层级：senior\n课程周期：8周\n\n请设计一个符合AI时代核心能力培养目标的PBL课程，重点关注：\n1. 人机协作能力培养\n2. 元认知与自主学习\n3. 创造性问题解决\n4. 数字素养与计算思维\n5. 情感智能与人文关怀\n6. 项目管理与执行能力\n\n课程应该包含完整的项目式学习设计，真实的驱动问题，多元化的评估体系，以及丰富的数字化学习资源。",
+      "fallback": true,
+      "error": "object async_generator can't be used in 'await' expression",
+      "learning_scenarios": [
+        {
+          "title": "AI伦理辩论赛",
+          "description": "通过角色扮演探讨AI发展的社会影响",
+          "ai_tools": [
+            "ChatGPT",
+            "Claude",
+            "论证分析工具"
+          ]
+        },
+        {
+          "title": "智慧城市设计挑战",
+          "description": "运用设计思维和AI工具设计未来城市",
+          "ai_tools": [
+            "Midjourney",
+            "数据分析平台",
+            "建模软件"
+          ]
+        }
+      ],
+      "content_types": [
+        "视频",
+        "交互式模拟",
+        "VR体验",
+        "AI对话"
+      ]
+    },
+    "assessment_expert": {
+      "agent_id": "assessment_expert",
+      "status": "completed_with_fallback",
+      "course_requirement": "课程标题：AI时代可持续发展教育\n课程描述：面向高中生的AI与可持续发展跨学科PBL项目，培养全球视野和社会责任感\n教育层级：senior\n课程周期：8周\n\n请设计一个符合AI时代核心能力培养目标的PBL课程，重点关注：\n1. 人机协作能力培养\n2. 元认知与自主学习\n3. 创造性问题解决\n4. 数字素养与计算思维\n5. 情感智能与人文关怀\n6. 项目管理与执行能力\n\n课程应该包含完整的项目式学习设计，真实的驱动问题，多元化的评估体系，以及丰富的数字化学习资源。",
+      "fallback": true,
+      "error": "object async_generator can't be used in 'await' expression",
+      "assessment_framework": {
+        "formative_assessment": "过程性评价，关注学习过程",
+        "summative_assessment": "成果性评价，关注能力表现",
+        "peer_assessment": "同伴评价，培养批判性思维",
+        "self_reflection": "自我反思，发展元认知能力"
+      },
+      "core_competencies_rubric": {
+        "human_ai_collaboration": "人机协作能力评价标准",
+        "creative_problem_solving": "创造性问题解决评价标准",
+        "digital_literacy": "数字素养评价标准"
+      }
+    },
+    "material_creator": {
+      "agent_id": "material_creator",
+      "status": "completed_with_fallback",
+      "course_requirement": "课程标题：AI时代可持续发展教育\n课程描述：面向高中生的AI与可持续发展跨学科PBL项目，培养全球视野和社会责任感\n教育层级：senior\n课程周期：8周\n\n请设计一个符合AI时代核心能力培养目标的PBL课程，重点关注：\n1. 人机协作能力培养\n2. 元认知与自主学习\n3. 创造性问题解决\n4. 数字素养与计算思维\n5. 情感智能与人文关怀\n6. 项目管理与执行能力\n\n课程应该包含完整的项目式学习设计，真实的驱动问题，多元化的评估体系，以及丰富的数字化学习资源。",
+      "fallback": true,
+      "error": "object async_generator can't be used in 'await' expression",
+      "digital_resources": [
+        {
+          "type": "交互式课件",
+          "description": "支持AI辅助学习的多媒体课件",
+          "tools": [
+            "H5P",
+            "Articulate",
+            "AI对话集成"
+          ]
+        },
+        {
+          "type": "项目工具包",
+          "description": "学生项目实践所需的数字工具集",
+          "tools": [
+            "协作平台",
+            "AI写作助手",
+            "数据可视化工具"
+          ]
+        }
+      ],
+      "ai_integration_guide": "学生和教师AI工具使用指南"
+    }
+  },
+  "design_time": 0.23,
+  "real_agents_used": true,
+  "export_metadata": {
+    "exported_at": "2025-09-21T21:40:03.189765",
+    "export_format": "json",
+    "includes_resources": true,
+    "includes_assessments": true,
+    "generator": "AI-Native PBL Course Design System"
+  }
+}

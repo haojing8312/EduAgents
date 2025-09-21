@@ -1,786 +1,714 @@
 """
-Course Export and Material Generation Service
-Provides comprehensive export capabilities for AI-generated courses in multiple formats
+课程导出服务
+支持PDF、DOCX、HTML、JSON多格式实际文件生成
 """
 
-import asyncio
-import json
-import logging
 import os
-import tempfile
+import json
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
-import zipfile
+from typing import Dict, Any, Optional
 
-try:
-    from docx import Document
-    from docx.shared import Inches
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    DOCX_AVAILABLE = True
-except ImportError:
-    DOCX_AVAILABLE = False
-    Document = None
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus.flowables import PageBreak
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
-try:
-    import markdown
-    from markdown.extensions import codehilite, tables, toc
-    MARKDOWN_AVAILABLE = True
-except ImportError:
-    MARKDOWN_AVAILABLE = False
-    markdown = None
+from docx import Document
+from docx.shared import Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-from app.core.config import settings
-from app.core.cache import smart_cache_manager
-from app.models.course import Course
-from app.services.course_persistence_service import get_persistence_service
-
-
-logger = logging.getLogger(__name__)
-
-
-class CourseExportFormat:
-    """Supported export formats"""
-
-    JSON = "json"
-    MARKDOWN = "markdown"
-    DOCX = "docx"
-    HTML = "html"
-    PDF = "pdf"
-    SCORM = "scorm"
-
-
-class MaterialGenerator:
-    """Generates educational materials from course data"""
-
-    def __init__(self):
-        self.templates = self._load_templates()
-
-    def _load_templates(self) -> Dict[str, str]:
-        """Load content templates for different material types"""
-        return {
-            "lesson_plan": """
-# {title}
-
-## 课程概述
-{description}
-
-## 学习目标
-{objectives}
-
-## 教学活动
-{activities}
-
-## 评估方式
-{assessments}
-
-## 所需资源
-{resources}
-""",
-            "student_guide": """
-# 学生学习指南: {title}
-
-## 课程介绍
-{introduction}
-
-## 学习路径
-{learning_path}
-
-## 项目任务
-{project_tasks}
-
-## 自评工具
-{self_assessment}
-""",
-            "assessment_rubric": """
-# 评价量规: {title}
-
-## 评价维度
-{criteria}
-
-## 评分标准
-{scoring_guide}
-
-## 反馈建议
-{feedback_guidelines}
-"""
-        }
-
-    async def generate_lesson_plans(self, course_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Generate detailed lesson plans for each course module"""
-        lesson_plans = []
-
-        course_architect = course_data.get("course_architect", {})
-        content_designer = course_data.get("content_designer", {})
-
-        # Extract phases/modules
-        phases = course_architect.get("course_structure", {}).get("phases", [])
-        scenarios = content_designer.get("learning_scenarios", [])
-
-        for i, phase in enumerate(phases):
-            lesson_plan = {
-                "id": f"lesson_{i+1}",
-                "title": phase.get("title", f"第{i+1}阶段"),
-                "description": phase.get("description", ""),
-                "duration": phase.get("duration", "1周"),
-                "objectives": phase.get("objectives", []),
-                "activities": self._extract_activities_for_phase(phase, scenarios),
-                "assessments": phase.get("assessments", []),
-                "resources": phase.get("resources", []),
-                "content": self._format_lesson_plan(phase, scenarios)
-            }
-            lesson_plans.append(lesson_plan)
-
-        return lesson_plans
-
-    def _extract_activities_for_phase(self, phase: Dict, scenarios: List[Dict]) -> List[Dict]:
-        """Extract and match activities for a specific phase"""
-        activities = []
-
-        # Add phase-specific activities
-        if "activities" in phase:
-            for activity in phase["activities"]:
-                activities.append({
-                    "type": "phase_activity",
-                    "title": activity.get("title", "学习活动"),
-                    "description": activity.get("description", ""),
-                    "duration": activity.get("duration", "45分钟")
-                })
-
-        # Match relevant scenarios
-        phase_title = phase.get("title", "").lower()
-        for scenario in scenarios:
-            scenario_title = scenario.get("title", "").lower()
-            if any(keyword in scenario_title for keyword in phase_title.split()):
-                activities.append({
-                    "type": "learning_scenario",
-                    "title": scenario.get("title", ""),
-                    "description": scenario.get("description", ""),
-                    "context": scenario.get("context", ""),
-                    "tasks": scenario.get("tasks", [])
-                })
-
-        return activities
-
-    def _format_lesson_plan(self, phase: Dict, scenarios: List[Dict]) -> str:
-        """Format lesson plan content using template"""
-        activities_text = []
-        for activity in self._extract_activities_for_phase(phase, scenarios):
-            activities_text.append(f"### {activity['title']}\n{activity['description']}")
-
-        return self.templates["lesson_plan"].format(
-            title=phase.get("title", "课程阶段"),
-            description=phase.get("description", ""),
-            objectives="\n".join([f"- {obj}" for obj in phase.get("objectives", [])]),
-            activities="\n\n".join(activities_text),
-            assessments="\n".join([f"- {assess}" for assess in phase.get("assessments", [])]),
-            resources="\n".join([f"- {res}" for res in phase.get("resources", [])])
-        )
-
-    async def generate_student_guide(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate comprehensive student learning guide"""
-        course_architect = course_data.get("course_architect", {})
-        content_designer = course_data.get("content_designer", {})
-        assessment_expert = course_data.get("assessment_expert", {})
-
-        guide = {
-            "title": course_architect.get("course_structure", {}).get("title", "AI时代PBL课程"),
-            "introduction": course_architect.get("course_structure", {}).get("description", ""),
-            "learning_path": self._create_learning_path(course_architect),
-            "project_tasks": self._extract_project_tasks(content_designer),
-            "self_assessment": self._create_self_assessment_tools(assessment_expert),
-            "content": ""
-        }
-
-        guide["content"] = self.templates["student_guide"].format(**guide)
-        return guide
-
-    def _create_learning_path(self, course_architect: Dict) -> str:
-        """Create a visual learning path from course structure"""
-        phases = course_architect.get("course_structure", {}).get("phases", [])
-        path_text = []
-
-        for i, phase in enumerate(phases):
-            path_text.append(f"{i+1}. **{phase.get('title', f'阶段{i+1}')}** ({phase.get('duration', '1周')})")
-            if phase.get("description"):
-                path_text.append(f"   - {phase['description']}")
-
-        return "\n".join(path_text)
-
-    def _extract_project_tasks(self, content_designer: Dict) -> str:
-        """Extract project tasks from content designer output"""
-        scenarios = content_designer.get("learning_scenarios", [])
-        tasks_text = []
-
-        for scenario in scenarios:
-            tasks_text.append(f"## {scenario.get('title', '项目任务')}")
-            if scenario.get("context"):
-                tasks_text.append(f"**项目背景**: {scenario['context']}")
-
-            if scenario.get("tasks"):
-                tasks_text.append("**具体任务**:")
-                for task in scenario["tasks"]:
-                    tasks_text.append(f"- {task}")
-
-        return "\n\n".join(tasks_text)
-
-    def _create_self_assessment_tools(self, assessment_expert: Dict) -> str:
-        """Create self-assessment tools from assessment expert output"""
-        assessment_text = []
-
-        if assessment_expert.get("evaluation_methods"):
-            assessment_text.append("## 自我评价工具")
-            for method in assessment_expert["evaluation_methods"]:
-                if isinstance(method, dict):
-                    assessment_text.append(f"### {method.get('name', '评价方法')}")
-                    assessment_text.append(f"{method.get('description', '')}")
-                else:
-                    assessment_text.append(f"- {method}")
-
-        if assessment_expert.get("rubrics"):
-            assessment_text.append("\n## 评价标准")
-            for rubric in assessment_expert["rubrics"]:
-                if isinstance(rubric, dict):
-                    assessment_text.append(f"### {rubric.get('criteria', '评价标准')}")
-                    assessment_text.append(f"{rubric.get('description', '')}")
-
-        return "\n".join(assessment_text)
+from jinja2 import Template
 
 
 class CourseExportService:
-    """Main service for exporting courses in various formats"""
+    """课程导出服务类"""
 
     def __init__(self):
-        self.material_generator = MaterialGenerator()
-        self.temp_dir = Path(tempfile.gettempdir()) / "pbl_exports"
-        self.temp_dir.mkdir(exist_ok=True)
+        self.export_dir = Path("/home/easegen/EduAgents/backend/exports")
+        self.ensure_export_dirs()
 
-    async def export_course(
-        self,
-        course_id: str,
-        export_format: str,
-        include_materials: bool = True,
-        custom_options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def ensure_export_dirs(self):
+        """确保导出目录存在"""
+        for format_type in ["pdf", "docx", "html", "json"]:
+            (self.export_dir / format_type).mkdir(parents=True, exist_ok=True)
+
+    async def export_course(self, course_data: Dict[str, Any], export_format: str,
+                          include_resources: bool = True,
+                          include_assessments: bool = True) -> Dict[str, Any]:
         """
-        Export a course in the specified format
+        导出课程为指定格式
 
         Args:
-            course_id: Course ID to export
-            export_format: Target format (json, markdown, docx, html, etc.)
-            include_materials: Whether to include generated materials
-            custom_options: Format-specific options
+            course_data: 课程数据
+            export_format: 导出格式 (pdf, docx, html, json)
+            include_resources: 是否包含资源
+            include_assessments: 是否包含评估
 
         Returns:
-            Export result with file paths and metadata
+            导出结果信息
         """
+
+        export_id = str(uuid.uuid4())
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        course_id = course_data.get("course_id", "unknown")
+
+        # 生成文件名
+        filename = f"pbl_course_{course_id}_{timestamp}.{export_format}"
+        file_path = self.export_dir / export_format / filename
+
         try:
-            # Get course data
-            course_data = await self._get_course_data(course_id)
-            if not course_data:
-                return {
-                    "success": False,
-                    "error": "Course not found",
-                    "course_id": course_id
-                }
+            # 根据格式调用对应的导出方法
+            if export_format == "pdf":
+                actual_path = await self.export_to_pdf(course_data, file_path,
+                                                     include_resources, include_assessments)
+            elif export_format == "docx":
+                actual_path = await self.export_to_docx(course_data, file_path,
+                                                      include_resources, include_assessments)
+            elif export_format == "html":
+                actual_path = await self.export_to_html(course_data, file_path,
+                                                      include_resources, include_assessments)
+            elif export_format == "json":
+                actual_path = await self.export_to_json(course_data, file_path,
+                                                      include_resources, include_assessments)
+            else:
+                raise ValueError(f"不支持的导出格式: {export_format}")
 
-            # Check cache first
-            cache_key = f"export:{course_id}:{export_format}:{include_materials}"
-            if smart_cache_manager.initialized:
-                cached_result = await smart_cache_manager.get(cache_key, cache_type="export")
-                if cached_result:
-                    logger.info(f"🎯 Export cache hit for course {course_id}")
-                    return cached_result
+            # 获取文件大小
+            file_size = self.get_file_size(actual_path)
 
-            # Generate materials if requested
-            materials = {}
-            if include_materials:
-                materials = await self._generate_course_materials(course_data)
-
-            # Export in requested format
-            export_result = await self._export_to_format(
-                course_data, materials, export_format, custom_options or {}
-            )
-
-            # Cache result
-            if smart_cache_manager.initialized and export_result.get("success"):
-                await smart_cache_manager.set(
-                    cache_key,
-                    export_result,
-                    expire=1800,  # 30 minutes
-                    cache_type="export"
-                )
-
-            logger.info(f"✅ Course exported successfully: {course_id} -> {export_format}")
-            return export_result
-
-        except Exception as e:
-            logger.error(f"❌ Course export failed: {e}")
             return {
-                "success": False,
-                "error": str(e),
+                "export_id": export_id,
                 "course_id": course_id,
-                "format": export_format
+                "format": export_format,
+                "file_name": filename,
+                "file_path": str(actual_path),
+                "file_size": file_size,
+                "download_url": f"/api/v1/courses/download/{export_format}/{filename}",
+                "includes": {
+                    "course_outline": True,
+                    "learning_activities": True,
+                    "assessment_rubrics": include_assessments,
+                    "teaching_resources": include_resources,
+                    "student_materials": True,
+                    "teacher_guide": True
+                },
+                "created_at": datetime.now().isoformat(),
+                "expires_at": "2025-10-21T18:00:00Z"
             }
 
-    async def _get_course_data(self, course_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieve complete course data including AI agent outputs"""
-        try:
-            async with await get_persistence_service() as persistence:
-                course = await persistence.get_course_by_id(uuid.UUID(course_id))
-                if course:
-                    # Extract agent data from extra_data
-                    agent_data = course.extra_data.get("agent_data", {})
-
-                    # Build comprehensive course data
-                    course_data = {
-                        "course_id": str(course.id),
-                        "title": course.title,
-                        "description": course.description,
-                        "subject": course.subject,
-                        "education_level": course.education_level,
-                        "difficulty_level": course.difficulty_level,
-                        "duration_weeks": course.duration_weeks,
-                        "duration_hours": course.duration_hours,
-                        "learning_objectives": course.learning_objectives,
-                        "core_competencies": course.core_competencies,
-                        "project_context": course.project_context,
-                        "driving_question": course.driving_question,
-                        "created_at": course.created_at.isoformat(),
-                        "ai_generated": course.extra_data.get("ai_generated", False),
-                        **agent_data  # Include all agent outputs
-                    }
-
-                    return course_data
-
-                return None
-
         except Exception as e:
-            logger.error(f"❌ Failed to get course data: {e}")
-            return None
+            raise Exception(f"导出失败: {str(e)}")
 
-    async def _generate_course_materials(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate all course materials"""
-        materials = {}
+    async def export_to_pdf(self, course_data: Dict[str, Any], file_path: Path,
+                          include_resources: bool, include_assessments: bool) -> Path:
+        """导出为PDF格式"""
 
+        doc = SimpleDocTemplate(str(file_path), pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
+
+        # 使用更可靠的中文字体解决方案
+        font_name = 'Helvetica'  # 默认字体
         try:
-            # Generate lesson plans
-            materials["lesson_plans"] = await self.material_generator.generate_lesson_plans(course_data)
+            from reportlab.pdfbase.ttfonts import TTFont
+            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
-            # Generate student guide
-            materials["student_guide"] = await self.material_generator.generate_student_guide(course_data)
+            font_registered = False
 
-            # Generate assessment rubrics
-            materials["assessment_rubrics"] = await self._generate_assessment_rubrics(course_data)
+            # 方案1: 尝试使用reportlab内置的Unicode CID字体
+            try:
+                # 注册中文Unicode CID字体（这个通常支持中文）
+                pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+                font_name = 'STSong-Light'
+                font_registered = True
+                print("✅ 成功注册STSong-Light CID字体")
+            except Exception as e:
+                print(f"⚠️ STSong-Light注册失败: {e}")
 
-            logger.info(f"📚 Generated {len(materials)} material types")
-
-        except Exception as e:
-            logger.error(f"❌ Material generation failed: {e}")
-            materials["error"] = str(e)
-
-        return materials
-
-    async def _generate_assessment_rubrics(self, course_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Generate assessment rubrics from assessment expert output"""
-        rubrics = []
-        assessment_expert = course_data.get("assessment_expert", {})
-
-        if assessment_expert.get("evaluation_methods"):
-            for method in assessment_expert["evaluation_methods"]:
-                if isinstance(method, dict):
-                    rubric = {
-                        "title": method.get("name", "评价量规"),
-                        "description": method.get("description", ""),
-                        "criteria": method.get("criteria", []),
-                        "scoring_guide": method.get("scoring", []),
-                        "content": self.material_generator.templates["assessment_rubric"].format(
-                            title=method.get("name", "评价量规"),
-                            criteria="\n".join([f"- {c}" for c in method.get("criteria", [])]),
-                            scoring_guide=method.get("description", ""),
-                            feedback_guidelines="根据评价结果提供个性化反馈"
-                        )
-                    }
-                    rubrics.append(rubric)
-
-        return rubrics
-
-    async def _export_to_format(
-        self,
-        course_data: Dict[str, Any],
-        materials: Dict[str, Any],
-        export_format: str,
-        options: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Export course to specific format"""
-
-        if export_format == CourseExportFormat.JSON:
-            return await self._export_to_json(course_data, materials, options)
-        elif export_format == CourseExportFormat.MARKDOWN:
-            return await self._export_to_markdown(course_data, materials, options)
-        elif export_format == CourseExportFormat.DOCX:
-            return await self._export_to_docx(course_data, materials, options)
-        elif export_format == CourseExportFormat.HTML:
-            return await self._export_to_html(course_data, materials, options)
-        else:
-            return {
-                "success": False,
-                "error": f"Unsupported export format: {export_format}",
-                "supported_formats": [
-                    CourseExportFormat.JSON,
-                    CourseExportFormat.MARKDOWN,
-                    CourseExportFormat.DOCX,
-                    CourseExportFormat.HTML
+            # 方案2: 如果CID字体失败，尝试TTF字体
+            if not font_registered:
+                font_paths = [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
                 ]
-            }
 
-    async def _export_to_json(
-        self, course_data: Dict, materials: Dict, options: Dict
-    ) -> Dict[str, Any]:
-        """Export course as JSON"""
-        export_data = {
-            "course": course_data,
-            "materials": materials,
-            "export_info": {
-                "format": "json",
-                "exported_at": datetime.now().isoformat(),
-                "version": "1.0"
-            }
-        }
+                for font_path in font_paths:
+                    if Path(font_path).exists():
+                        try:
+                            pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+                            font_name = 'ChineseFont'
+                            font_registered = True
+                            print(f"✅ 成功注册TTF字体: {font_path}")
+                            break
+                        except Exception as e:
+                            print(f"⚠️ TTF字体注册失败: {e}")
+                            continue
 
-        # Create file
-        filename = f"course_{course_data['course_id']}.json"
-        file_path = self.temp_dir / filename
+            if not font_registered:
+                print("⚠️ 所有字体注册失败，使用Helvetica（中文可能显示为方块）")
 
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(export_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"❌ 字体注册过程异常: {e}")
+            font_name = 'Helvetica'
 
-        return {
-            "success": True,
-            "format": "json",
-            "file_path": str(file_path),
-            "filename": filename,
-            "size_bytes": file_path.stat().st_size,
-            "course_id": course_data["course_id"]
-        }
+        # 自定义样式支持中文
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=1,  # 居中
+            fontName=font_name
+        )
 
-    async def _export_to_markdown(
-        self, course_data: Dict, materials: Dict, options: Dict
-    ) -> Dict[str, Any]:
-        """Export course as Markdown"""
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName=font_name
+        )
 
-        # Build comprehensive markdown content
-        md_content = []
+        heading2_style = ParagraphStyle(
+            'CustomHeading2',
+            parent=styles['Heading2'],
+            fontSize=14,
+            fontName=font_name
+        )
 
-        # Course header
-        md_content.append(f"# {course_data['title']}")
-        md_content.append(f"\n**课程描述**: {course_data['description']}")
-        md_content.append(f"\n**学科**: {course_data['subject']}")
-        md_content.append(f"**难度**: {course_data['difficulty_level']}")
-        md_content.append(f"**时长**: {course_data['duration_weeks']}周 ({course_data['duration_hours']}学时)")
+        heading3_style = ParagraphStyle(
+            'CustomHeading3',
+            parent=styles['Heading3'],
+            fontSize=12,
+            fontName=font_name
+        )
 
-        # Learning objectives
-        if course_data.get("learning_objectives"):
-            md_content.append("\n## 学习目标")
-            for obj in course_data["learning_objectives"]:
-                md_content.append(f"- {obj}")
+        # 使用安全的文本处理方式
+        def safe_text(text):
+            """安全处理文本，对于无法显示的字符使用替代方案"""
+            if font_name == 'Helvetica':
+                # 如果使用默认字体，提供英文标题
+                if "AI原生PBL课程设计" in text:
+                    return "AI-Native PBL Course Design"
+                elif "课程基本信息" in text:
+                    return "Course Information"
+                elif "学习目标" in text:
+                    return "Learning Objectives"
+                elif "项目驱动问题" in text:
+                    return "Driving Question"
+                elif "最终产品" in text:
+                    return "Final Products"
+                elif "课程实施阶段" in text:
+                    return "Implementation Phases"
+                elif "评估体系" in text:
+                    return "Assessment System"
+                elif "教学资源" in text:
+                    return "Teaching Resources"
+                elif "技术要求" in text:
+                    return "Technical Requirements"
+                elif "教师准备" in text:
+                    return "Teacher Preparation"
+                elif "课程质量指标" in text:
+                    return "Quality Metrics"
+            return text
 
-        # Project context
-        if course_data.get("project_context"):
-            md_content.append("\n## 项目背景")
-            md_content.append(course_data["project_context"])
+        story.append(Paragraph(safe_text("AI原生PBL课程设计"), title_style))
+        story.append(Paragraph(safe_text(course_data.get('title', 'Untitled Course')), title_style))
+        story.append(Spacer(1, 20))
 
-        # Driving question
-        if course_data.get("driving_question"):
-            md_content.append("\n## 核心问题")
-            md_content.append(course_data["driving_question"])
-
-        # Add materials
-        if materials.get("lesson_plans"):
-            md_content.append("\n## 课程计划")
-            for lesson in materials["lesson_plans"]:
-                md_content.append(f"\n### {lesson['title']}")
-                md_content.append(lesson.get("content", lesson.get("description", "")))
-
-        if materials.get("student_guide"):
-            md_content.append("\n## 学生指南")
-            md_content.append(materials["student_guide"].get("content", ""))
-
-        # Create file
-        filename = f"course_{course_data['course_id']}.md"
-        file_path = self.temp_dir / filename
-
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write("\n".join(md_content))
-
-        return {
-            "success": True,
-            "format": "markdown",
-            "file_path": str(file_path),
-            "filename": filename,
-            "size_bytes": file_path.stat().st_size,
-            "course_id": course_data["course_id"]
-        }
-
-    async def _export_to_docx(
-        self, course_data: Dict, materials: Dict, options: Dict
-    ) -> Dict[str, Any]:
-        """Export course as Word document"""
-
-        if not DOCX_AVAILABLE:
-            return {
-                "success": False,
-                "error": "DOCX export requires python-docx package",
-                "course_id": course_data["course_id"]
-            }
-
-        # Create Word document
-        doc = Document()
-
-        # Title
-        title = doc.add_heading(course_data['title'], 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        # Course info
-        doc.add_heading('课程信息', level=1)
-        info_table = doc.add_table(rows=5, cols=2)
-        info_table.style = 'Table Grid'
-
+        # 课程基本信息
+        story.append(Paragraph(safe_text("课程基本信息"), heading2_style))
         info_data = [
-            ('课程名称', course_data['title']),
-            ('学科领域', course_data['subject']),
-            ('难度等级', course_data['difficulty_level']),
-            ('课程时长', f"{course_data['duration_weeks']}周 ({course_data['duration_hours']}学时)"),
-            ('创建时间', course_data.get('created_at', 'N/A'))
+            [safe_text("课程名称") if font_name != 'Helvetica' else "Course Name", course_data.get('title', '')],
+            [safe_text("教育层级") if font_name != 'Helvetica' else "Education Level", course_data.get('education_level', '')],
+            [safe_text("年级") if font_name != 'Helvetica' else "Grade Levels", str(course_data.get('grade_levels', []))],
+            [safe_text("持续周数") if font_name != 'Helvetica' else "Duration (weeks)", f"{course_data.get('duration_weeks', 0)} weeks"],
+            [safe_text("总课时") if font_name != 'Helvetica' else "Total Hours", f"{course_data.get('duration_hours', 0)} hours"],
+            [safe_text("创建时间") if font_name != 'Helvetica' else "Created At", course_data.get('created_at', '')[:19]]
         ]
 
-        for i, (key, value) in enumerate(info_data):
-            info_table.cell(i, 0).text = key
-            info_table.cell(i, 1).text = str(value)
+        info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), font_name),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(info_table)
+        story.append(Spacer(1, 20))
 
-        # Course description
-        doc.add_heading('课程描述', level=1)
-        doc.add_paragraph(course_data['description'])
+        # 学习目标
+        story.append(Paragraph(safe_text("学习目标"), heading2_style))
+        objectives = course_data.get('learning_objectives', [])
+        for i, obj in enumerate(objectives, 1):
+            story.append(Paragraph(f"{i}. {obj}", normal_style))
+        story.append(Spacer(1, 15))
 
-        # Learning objectives
-        if course_data.get('learning_objectives'):
-            doc.add_heading('学习目标', level=1)
-            for obj in course_data['learning_objectives']:
-                doc.add_paragraph(obj, style='List Bullet')
+        # 驱动性问题
+        story.append(Paragraph(safe_text("项目驱动问题"), heading2_style))
+        story.append(Paragraph(course_data.get('driving_question', ''), normal_style))
+        story.append(Spacer(1, 15))
 
-        # Add materials
-        if materials.get('lesson_plans'):
-            doc.add_heading('课程计划', level=1)
-            for lesson in materials['lesson_plans']:
-                doc.add_heading(lesson['title'], level=2)
-                doc.add_paragraph(lesson.get('description', ''))
+        # 最终产品
+        story.append(Paragraph(safe_text("最终产品"), heading2_style))
+        final_products = course_data.get('final_products', [])
+        for product in final_products:
+            story.append(Paragraph(f"• {product}", normal_style))
+        story.append(Spacer(1, 15))
 
-        # Create file
-        filename = f"course_{course_data['course_id']}.docx"
-        file_path = self.temp_dir / filename
+        # 课程阶段
+        story.append(Paragraph(safe_text("课程实施阶段"), heading2_style))
+        phases = course_data.get('phases', [])
+        for phase in phases:
+            story.append(Paragraph(f"【{phase.get('name', '')}】 - {phase.get('duration', '')}", heading3_style))
+            activities = phase.get('activities', [])
+            for activity in activities:
+                story.append(Paragraph(f"• {activity}", normal_style))
+
+            # 添加AI工具信息
+            ai_tools = phase.get('ai_tools', [])
+            if ai_tools:
+                ai_tools_text = f"Recommended AI Tools: {', '.join(ai_tools)}" if font_name == 'Helvetica' else f"推荐AI工具: {', '.join(ai_tools)}"
+                story.append(Paragraph(ai_tools_text, normal_style))
+            story.append(Spacer(1, 10))
+
+        # 评估体系
+        if include_assessments and 'assessments' in course_data:
+            story.append(PageBreak())
+            story.append(Paragraph(safe_text("评估体系"), heading2_style))
+            assessments = course_data.get('assessments', [])
+            for assessment in assessments:
+                story.append(Paragraph(f"【{assessment.get('name', '')}】", heading3_style))
+                story.append(Paragraph(f"类型: {assessment.get('type', '')}", normal_style))
+                story.append(Paragraph(f"权重: {assessment.get('weight', 0)*100}%", normal_style))
+                methods = assessment.get('methods', [])
+                for method in methods:
+                    story.append(Paragraph(f"• {method}", normal_style))
+                story.append(Spacer(1, 10))
+
+        # 教学资源
+        if include_resources and 'resources' in course_data:
+            story.append(Paragraph(safe_text("教学资源"), heading2_style))
+            resources = course_data.get('resources', [])
+            for resource in resources:
+                story.append(Paragraph(f"【{resource.get('title', '')}】", heading3_style))
+                story.append(Paragraph(f"类型: {resource.get('type', '')}", normal_style))
+                story.append(Paragraph(f"描述: {resource.get('description', '')}", normal_style))
+                story.append(Spacer(1, 10))
+
+        # 技术要求
+        if 'technology_requirements' in course_data:
+            story.append(Paragraph("技术要求", heading2_style))
+            tech_requirements = course_data.get('technology_requirements', [])
+            for req in tech_requirements:
+                story.append(Paragraph(f"• {req}", normal_style))
+            story.append(Spacer(1, 10))
+
+        # 教师准备
+        if 'teacher_preparation' in course_data:
+            story.append(Paragraph("教师准备", heading2_style))
+            preparations = course_data.get('teacher_preparation', [])
+            for prep in preparations:
+                story.append(Paragraph(f"• {prep}", normal_style))
+            story.append(Spacer(1, 10))
+
+        # 质量指标（如果有）
+        if 'quality_metrics' in course_data:
+            story.append(Paragraph("课程质量指标", heading2_style))
+            metrics = course_data.get('quality_metrics', {})
+            story.append(Paragraph(f"AI能力覆盖度: {metrics.get('ai_competency_coverage', 0)*100:.0f}%", normal_style))
+            story.append(Paragraph(f"PBL方法论完整性: {metrics.get('pbl_methodology_score', 0)*100:.0f}%", normal_style))
+            story.append(Paragraph(f"内容丰富度: {metrics.get('content_richness', 0)*100:.0f}%", normal_style))
+            story.append(Paragraph(f"评估真实性: {metrics.get('assessment_authenticity', 0)*100:.0f}%", normal_style))
+            story.append(Paragraph(f"资源完整性: {metrics.get('resource_completeness', 0)*100:.0f}%", normal_style))
+
+        # 生成PDF
+        doc.build(story)
+        return file_path
+
+    async def export_to_docx(self, course_data: Dict[str, Any], file_path: Path,
+                           include_resources: bool, include_assessments: bool) -> Path:
+        """导出为DOCX格式"""
+
+        doc = Document()
+
+        # 标题
+        title = doc.add_heading('AI原生PBL课程设计', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        course_title = doc.add_heading(course_data.get('title', '未命名课程'), 1)
+        course_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # 课程基本信息
+        doc.add_heading('课程基本信息', 2)
+        table = doc.add_table(rows=6, cols=2)
+        table.style = 'Table Grid'
+
+        info_items = [
+            ("课程名称", course_data.get('title', '')),
+            ("教育层级", course_data.get('education_level', '')),
+            ("年级", str(course_data.get('grade_levels', []))),
+            ("持续周数", f"{course_data.get('duration_weeks', 0)}周"),
+            ("总课时", f"{course_data.get('duration_hours', 0)}小时"),
+            ("创建时间", course_data.get('created_at', '')[:19])
+        ]
+
+        for i, (key, value) in enumerate(info_items):
+            table.cell(i, 0).text = key
+            table.cell(i, 1).text = value
+
+        # 学习目标
+        doc.add_heading('学习目标', 2)
+        objectives = course_data.get('learning_objectives', [])
+        for i, obj in enumerate(objectives, 1):
+            doc.add_paragraph(f"{i}. {obj}")
+
+        # 驱动性问题
+        doc.add_heading('项目驱动问题', 2)
+        doc.add_paragraph(course_data.get('driving_question', ''))
+
+        # 最终产品
+        doc.add_heading('最终产品', 2)
+        final_products = course_data.get('final_products', [])
+        for product in final_products:
+            doc.add_paragraph(f"• {product}")
+
+        # 课程阶段
+        doc.add_heading('课程实施阶段', 2)
+        phases = course_data.get('phases', [])
+        for phase in phases:
+            doc.add_heading(f"{phase.get('name', '')} - {phase.get('duration', '')}", 3)
+            activities = phase.get('activities', [])
+            for activity in activities:
+                doc.add_paragraph(f"• {activity}")
+
+            # 添加AI工具信息
+            ai_tools = phase.get('ai_tools', [])
+            if ai_tools:
+                doc.add_paragraph(f"推荐AI工具: {', '.join(ai_tools)}")
+                doc.add_paragraph("")  # 空行
+
+        # 评估体系
+        if include_assessments and 'assessments' in course_data:
+            doc.add_page_break()
+            doc.add_heading('评估体系', 2)
+            assessments = course_data.get('assessments', [])
+            for assessment in assessments:
+                doc.add_heading(assessment.get('name', ''), 3)
+                doc.add_paragraph(f"类型: {assessment.get('type', '')}")
+                doc.add_paragraph(f"权重: {assessment.get('weight', 0)*100}%")
+                methods = assessment.get('methods', [])
+                for method in methods:
+                    doc.add_paragraph(f"• {method}")
+
+        # 教学资源
+        if include_resources and 'resources' in course_data:
+            doc.add_heading('教学资源', 2)
+            resources = course_data.get('resources', [])
+            for resource in resources:
+                doc.add_heading(resource.get('title', ''), 3)
+                doc.add_paragraph(f"类型: {resource.get('type', '')}")
+                doc.add_paragraph(f"描述: {resource.get('description', '')}")
+                doc.add_paragraph("")  # 空行
+
+        # 技术要求
+        if 'technology_requirements' in course_data:
+            doc.add_heading('技术要求', 2)
+            tech_requirements = course_data.get('technology_requirements', [])
+            for req in tech_requirements:
+                doc.add_paragraph(f"• {req}")
+
+        # 教师准备
+        if 'teacher_preparation' in course_data:
+            doc.add_heading('教师准备', 2)
+            preparations = course_data.get('teacher_preparation', [])
+            for prep in preparations:
+                doc.add_paragraph(f"• {prep}")
+
+        # 质量指标
+        if 'quality_metrics' in course_data:
+            doc.add_heading('课程质量指标', 2)
+            metrics = course_data.get('quality_metrics', {})
+
+            metrics_table = doc.add_table(rows=6, cols=2)
+            metrics_table.style = 'Table Grid'
+
+            metrics_items = [
+                ("AI能力覆盖度", f"{metrics.get('ai_competency_coverage', 0)*100:.0f}%"),
+                ("PBL方法论完整性", f"{metrics.get('pbl_methodology_score', 0)*100:.0f}%"),
+                ("内容丰富度", f"{metrics.get('content_richness', 0)*100:.0f}%"),
+                ("评估真实性", f"{metrics.get('assessment_authenticity', 0)*100:.0f}%"),
+                ("资源完整性", f"{metrics.get('resource_completeness', 0)*100:.0f}%"),
+                ("综合评分", f"{sum(metrics.values())/len(metrics)*5:.1f}/5.0")
+            ]
+
+            for i, (metric, value) in enumerate(metrics_items):
+                metrics_table.cell(i, 0).text = metric
+                metrics_table.cell(i, 1).text = value
+
+        # 设计信息
+        doc.add_heading('设计信息', 2)
+        doc.add_paragraph(f"课程设计时间: {course_data.get('created_at', '')[:19]}")
+        if 'design_agents' in course_data:
+            doc.add_paragraph("参与设计的AI智能体:")
+            agent_names = {
+                'education_theorist': '教育理论专家',
+                'course_architect': '课程架构师',
+                'content_designer': '内容设计师',
+                'assessment_expert': '评估专家',
+                'material_creator': '素材创作者'
+            }
+            for agent in course_data.get('design_agents', []):
+                doc.add_paragraph(f"• {agent_names.get(agent, agent)}")
+
+        if course_data.get('ai_native'):
+            doc.add_paragraph("✓ AI原生设计")
+        if course_data.get('competency_based'):
+            doc.add_paragraph("✓ 能力导向课程")
+
+        # 保存文档
         doc.save(str(file_path))
+        return file_path
 
-        return {
-            "success": True,
-            "format": "docx",
-            "file_path": str(file_path),
-            "filename": filename,
-            "size_bytes": file_path.stat().st_size,
-            "course_id": course_data["course_id"]
-        }
+    async def export_to_html(self, course_data: Dict[str, Any], file_path: Path,
+                           include_resources: bool, include_assessments: bool) -> Path:
+        """导出为HTML格式"""
 
-    async def _export_to_html(
-        self, course_data: Dict, materials: Dict, options: Dict
-    ) -> Dict[str, Any]:
-        """Export course as HTML"""
-
-        # Build HTML content
-        html_content = f"""
+        html_template = """
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{course_data['title']}</title>
+    <title>{{ course.title }} - AI原生PBL课程设计</title>
     <style>
-        body {{ font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.6; margin: 40px; }}
-        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; }}
-        .course-info {{ background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px; }}
-        .section {{ margin: 30px 0; }}
-        h1 {{ color: #2c3e50; }}
-        h2 {{ color: #34495e; border-left: 4px solid #3498db; padding-left: 10px; }}
-        .objective {{ background: #e8f5e8; padding: 10px; margin: 5px 0; border-radius: 3px; }}
-        .lesson {{ border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }}
+        body { font-family: "微软雅黑", Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .title { color: #2c3e50; font-size: 28px; margin-bottom: 10px; }
+        .subtitle { color: #34495e; font-size: 20px; }
+        .section { margin-bottom: 30px; }
+        .section-title { color: #2980b9; font-size: 18px; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .info-table th, .info-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .info-table th { background-color: #f8f9fa; font-weight: bold; }
+        .objective-list { list-style-type: decimal; padding-left: 20px; }
+        .phase { margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }
+        .phase-title { color: #e74c3c; font-weight: bold; }
+        .activity-list { list-style-type: disc; padding-left: 20px; }
+        .quality-metrics { background-color: #e8f5e8; padding: 15px; border-radius: 5px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>{course_data['title']}</h1>
-        <p><strong>AI时代PBL课程设计</strong></p>
+        <h1 class="title">AI原生PBL课程设计</h1>
+        <h2 class="subtitle">{{ course.title }}</h2>
     </div>
 
-    <div class="course-info">
-        <h2>课程基本信息</h2>
-        <p><strong>学科领域:</strong> {course_data['subject']}</p>
-        <p><strong>难度等级:</strong> {course_data['difficulty_level']}</p>
-        <p><strong>课程时长:</strong> {course_data['duration_weeks']}周 ({course_data['duration_hours']}学时)</p>
-        <p><strong>课程描述:</strong> {course_data['description']}</p>
+    <div class="section">
+        <h3 class="section-title">课程基本信息</h3>
+        <table class="info-table">
+            <tr><th>课程名称</th><td>{{ course.title }}</td></tr>
+            <tr><th>课程描述</th><td>{{ course.description }}</td></tr>
+            <tr><th>教育层级</th><td>{{ course.education_level }}</td></tr>
+            <tr><th>适用年级</th><td>{{ course.grade_levels | join(', ') }}年级</td></tr>
+            <tr><th>持续时间</th><td>{{ course.duration_weeks }}周 ({{ course.duration_hours }}课时)</td></tr>
+            <tr><th>创建时间</th><td>{{ course.created_at[:19] }}</td></tr>
+        </table>
     </div>
-"""
 
-        # Learning objectives
-        if course_data.get('learning_objectives'):
-            html_content += '<div class="section"><h2>学习目标</h2>'
-            for obj in course_data['learning_objectives']:
-                html_content += f'<div class="objective">• {obj}</div>'
-            html_content += '</div>'
+    <div class="section">
+        <h3 class="section-title">学习目标</h3>
+        <ol class="objective-list">
+            {% for objective in course.learning_objectives %}
+            <li>{{ objective }}</li>
+            {% endfor %}
+        </ol>
+    </div>
 
-        # Project context and driving question
-        if course_data.get('project_context'):
-            html_content += f'<div class="section"><h2>项目背景</h2><p>{course_data["project_context"]}</p></div>'
+    <div class="section">
+        <h3 class="section-title">项目驱动问题</h3>
+        <p><strong>{{ course.driving_question }}</strong></p>
+    </div>
 
-        if course_data.get('driving_question'):
-            html_content += f'<div class="section"><h2>核心问题</h2><p>{course_data["driving_question"]}</p></div>'
+    <div class="section">
+        <h3 class="section-title">最终产品</h3>
+        <ul>
+            {% for product in course.final_products %}
+            <li>{{ product }}</li>
+            {% endfor %}
+        </ul>
+    </div>
 
-        # Add materials
-        if materials.get('lesson_plans'):
-            html_content += '<div class="section"><h2>课程计划</h2>'
-            for lesson in materials['lesson_plans']:
-                html_content += f'''
-                <div class="lesson">
-                    <h3>{lesson['title']}</h3>
-                    <p><strong>时长:</strong> {lesson.get('duration', 'N/A')}</p>
-                    <p>{lesson.get('description', '')}</p>
-                </div>
-                '''
-            html_content += '</div>'
+    <div class="section">
+        <h3 class="section-title">课程实施阶段</h3>
+        {% for phase in course.phases %}
+        <div class="phase">
+            <div class="phase-title">{{ phase.name }} ({{ phase.duration }})</div>
+            <ul class="activity-list">
+                {% for activity in phase.activities %}
+                <li>{{ activity }}</li>
+                {% endfor %}
+            </ul>
+            <p><strong>推荐AI工具:</strong> {{ phase.ai_tools | join(', ') }}</p>
+        </div>
+        {% endfor %}
+    </div>
 
-        html_content += '</body></html>'
+    {% if include_assessments and course.assessments %}
+    <div class="section">
+        <h3 class="section-title">评估体系</h3>
+        {% for assessment in course.assessments %}
+        <div class="phase">
+            <div class="phase-title">{{ assessment.name }} (权重: {{ (assessment.weight * 100) | int }}%)</div>
+            <p><strong>类型:</strong> {{ assessment.type }}</p>
+            <ul>
+                {% for method in assessment.methods %}
+                <li>{{ method }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
-        # Create file
-        filename = f"course_{course_data['course_id']}.html"
-        file_path = self.temp_dir / filename
+    {% if include_resources and course.resources %}
+    <div class="section">
+        <h3 class="section-title">教学资源</h3>
+        {% for resource in course.resources %}
+        <div class="phase">
+            <div class="phase-title">{{ resource.title }}</div>
+            <p><strong>类型:</strong> {{ resource.type }}</p>
+            <p>{{ resource.description }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if course.quality_metrics %}
+    <div class="section">
+        <h3 class="section-title">课程质量指标</h3>
+        <div class="quality-metrics">
+            <p><strong>AI能力覆盖度:</strong> {{ (course.quality_metrics.ai_competency_coverage * 100) | int }}%</p>
+            <p><strong>PBL方法论完整性:</strong> {{ (course.quality_metrics.pbl_methodology_score * 100) | int }}%</p>
+            <p><strong>内容丰富度:</strong> {{ (course.quality_metrics.content_richness * 100) | int }}%</p>
+            <p><strong>评估真实性:</strong> {{ (course.quality_metrics.assessment_authenticity * 100) | int }}%</p>
+            <p><strong>资源完整性:</strong> {{ (course.quality_metrics.resource_completeness * 100) | int }}%</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h3 class="section-title">设计团队</h3>
+        <p>本课程由以下AI专业智能体协作设计完成:</p>
+        <ul>
+            <li><strong>教育理论专家</strong> - AI时代教育理论和PBL方法论</li>
+            <li><strong>课程架构师</strong> - 面向AI时代能力的课程结构设计</li>
+            <li><strong>内容设计师</strong> - AI时代场景化学习内容创作</li>
+            <li><strong>评估专家</strong> - AI时代核心能力评价体系设计</li>
+            <li><strong>素材创作者</strong> - AI时代数字化资源生成</li>
+        </ul>
+    </div>
+
+    <footer style="margin-top: 50px; text-align: center; color: #7f8c8d; font-size: 12px;">
+        <p>Generated by AI-Native PBL Course Design System | {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    </footer>
+</body>
+</html>
+        """
+
+        template = Template(html_template)
+        html_content = template.render(
+            course=course_data,
+            include_assessments=include_assessments,
+            include_resources=include_resources,
+            datetime=datetime
+        )
 
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
 
-        return {
-            "success": True,
-            "format": "html",
-            "file_path": str(file_path),
-            "filename": filename,
-            "size_bytes": file_path.stat().st_size,
-            "course_id": course_data["course_id"]
+        return file_path
+
+    async def export_to_json(self, course_data: Dict[str, Any], file_path: Path,
+                           include_resources: bool, include_assessments: bool) -> Path:
+        """导出为JSON格式"""
+
+        # 创建导出数据的副本
+        export_data = course_data.copy()
+
+        # 根据选项过滤内容
+        if not include_resources:
+            export_data.pop('resources', None)
+            export_data.pop('technology_requirements', None)
+            export_data.pop('teacher_preparation', None)
+
+        if not include_assessments:
+            export_data.pop('assessments', None)
+
+        # 添加导出元数据
+        export_data['export_metadata'] = {
+            'exported_at': datetime.now().isoformat(),
+            'export_format': 'json',
+            'includes_resources': include_resources,
+            'includes_assessments': include_assessments,
+            'generator': 'AI-Native PBL Course Design System'
         }
 
-    async def create_course_package(
-        self,
-        course_id: str,
-        formats: List[str],
-        include_materials: bool = True
-    ) -> Dict[str, Any]:
-        """Create a complete course package with multiple formats"""
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(export_data, f, ensure_ascii=False, indent=2)
+
+        return file_path
+
+    def get_file_size(self, file_path: Path) -> str:
+        """获取文件大小"""
         try:
-            package_dir = self.temp_dir / f"course_package_{course_id}"
-            package_dir.mkdir(exist_ok=True)
+            size_bytes = file_path.stat().st_size
+            if size_bytes < 1024:
+                return f"{size_bytes}B"
+            elif size_bytes < 1024 * 1024:
+                return f"{size_bytes / 1024:.1f}KB"
+            else:
+                return f"{size_bytes / (1024 * 1024):.1f}MB"
+        except:
+            return "Unknown"
 
-            exported_files = []
-            errors = []
+    def list_exports(self, format_type: Optional[str] = None) -> Dict[str, Any]:
+        """列出已导出的文件"""
 
-            # Export in each requested format
-            for fmt in formats:
-                try:
-                    result = await self.export_course(course_id, fmt, include_materials)
-                    if result.get("success"):
-                        # Copy file to package directory
-                        src_path = Path(result["file_path"])
-                        dst_path = package_dir / result["filename"]
+        exports = []
 
-                        if src_path.exists():
-                            import shutil
-                            shutil.copy2(src_path, dst_path)
-                            exported_files.append({
-                                "format": fmt,
-                                "filename": result["filename"],
-                                "size_bytes": result["size_bytes"]
-                            })
-                    else:
-                        errors.append(f"{fmt}: {result.get('error', 'Unknown error')}")
+        if format_type:
+            formats = [format_type]
+        else:
+            formats = ["pdf", "docx", "html", "json"]
 
-                except Exception as e:
-                    errors.append(f"{fmt}: {str(e)}")
+        for fmt in formats:
+            format_dir = self.export_dir / fmt
+            if format_dir.exists():
+                for file_path in format_dir.glob(f"*.{fmt}"):
+                    exports.append({
+                        "format": fmt,
+                        "filename": file_path.name,
+                        "file_path": str(file_path),
+                        "file_size": self.get_file_size(file_path),
+                        "created_at": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+                    })
 
-            # Create ZIP package
-            zip_filename = f"course_package_{course_id}.zip"
-            zip_path = self.temp_dir / zip_filename
-
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for file_info in exported_files:
-                    file_path = package_dir / file_info["filename"]
-                    if file_path.exists():
-                        zipf.write(file_path, file_info["filename"])
-
-                # Add package info
-                package_info = {
-                    "course_id": course_id,
-                    "created_at": datetime.now().isoformat(),
-                    "formats": [f["format"] for f in exported_files],
-                    "total_files": len(exported_files),
-                    "errors": errors
-                }
-
-                zipf.writestr("package_info.json", json.dumps(package_info, ensure_ascii=False, indent=2))
-
-            return {
-                "success": True,
-                "package_path": str(zip_path),
-                "package_filename": zip_filename,
-                "package_size_bytes": zip_path.stat().st_size,
-                "exported_files": exported_files,
-                "errors": errors,
-                "course_id": course_id
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Package creation failed: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "course_id": course_id
-            }
+        return {
+            "exports": sorted(exports, key=lambda x: x["created_at"], reverse=True),
+            "total_count": len(exports)
+        }
 
 
-# Global export service instance
+# 全局导出服务实例
 export_service = CourseExportService()
-
-
-async def export_course_to_format(
-    course_id: str,
-    export_format: str,
-    include_materials: bool = True,
-    custom_options: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """Export a course in the specified format"""
-    return await export_service.export_course(
-        course_id, export_format, include_materials, custom_options
-    )
-
-
-async def create_course_package(
-    course_id: str,
-    formats: List[str],
-    include_materials: bool = True
-) -> Dict[str, Any]:
-    """Create a complete course package with multiple formats"""
-    return await export_service.create_course_package(course_id, formats, include_materials)
-
-
-async def get_supported_formats() -> List[str]:
-    """Get list of supported export formats"""
-    return [
-        CourseExportFormat.JSON,
-        CourseExportFormat.MARKDOWN,
-        CourseExportFormat.DOCX,
-        CourseExportFormat.HTML
-    ]
