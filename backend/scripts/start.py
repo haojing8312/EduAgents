@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-EduAgents 后端启动脚本
-提供便捷的服务启动和管理功能
+EduAgents 后端开发启动脚本
+简化版启动工具，默认开发模式和48284端口
 """
 
 import argparse
@@ -9,7 +9,6 @@ import logging
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 # 获取项目根目录
@@ -40,11 +39,11 @@ def check_dependencies():
         logger.info("请运行: uv sync")
         return False
 
-def start_backend(host="0.0.0.0", port=8000, reload=True, workers=1):
+def start_backend(host="0.0.0.0", port=48284, reload=True):
     """启动后端服务"""
     logger = logging.getLogger(__name__)
 
-    logger.info("🚀 启动 EduAgents 后端服务...")
+    logger.info("🚀 启动 EduAgents 后端服务 (开发模式)...")
     logger.info(f"📍 地址: http://{host}:{port}")
     logger.info(f"📚 文档: http://{host}:{port}/docs")
 
@@ -59,10 +58,6 @@ def start_backend(host="0.0.0.0", port=8000, reload=True, workers=1):
     if reload:
         cmd.append("--reload")
         logger.info("🔄 开启热重载模式")
-
-    if workers > 1:
-        cmd.extend(["--workers", str(workers)])
-        logger.info(f"👥 使用 {workers} 个工作进程")
 
     # 设置环境变量
     env = os.environ.copy()
@@ -82,16 +77,12 @@ def start_backend(host="0.0.0.0", port=8000, reload=True, workers=1):
 
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(description="EduAgents 后端启动工具")
+    parser = argparse.ArgumentParser(description="EduAgents 后端开发启动工具")
 
     # 基础参数
     parser.add_argument("--host", default="0.0.0.0", help="绑定地址 (默认: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8000, help="端口号 (默认: 8000)")
+    parser.add_argument("--port", type=int, default=48284, help="端口号 (默认: 48284)")
     parser.add_argument("--no-reload", action="store_true", help="禁用热重载")
-    parser.add_argument("--workers", type=int, default=1, help="工作进程数 (默认: 1)")
-
-    # 环境参数
-    parser.add_argument("--env", choices=["dev", "prod"], default="dev", help="运行环境")
     parser.add_argument("--check", action="store_true", help="只检查依赖，不启动服务")
 
     args = parser.parse_args()
@@ -100,7 +91,7 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
 
-    logger.info("🌟 EduAgents 后端启动工具")
+    logger.info("🌟 EduAgents 后端开发启动工具")
     logger.info(f"📂 项目目录: {PROJECT_ROOT}")
 
     # 检查依赖
@@ -111,22 +102,13 @@ def main():
         logger.info("✅ 依赖检查完成")
         return 0
 
-    # 根据环境调整参数
-    if args.env == "prod":
-        reload = False
-        workers = max(2, args.workers)
-        logger.info("🏭 生产环境模式")
-    else:
-        reload = not args.no_reload
-        workers = args.workers
-        logger.info("🛠️ 开发环境模式")
+    logger.info("🛠️ 开发环境模式")
 
     # 启动服务
     success = start_backend(
         host=args.host,
         port=args.port,
-        reload=reload,
-        workers=workers
+        reload=not args.no_reload
     )
 
     return 0 if success else 1
