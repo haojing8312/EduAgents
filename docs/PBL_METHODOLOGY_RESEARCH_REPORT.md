@@ -204,7 +204,7 @@ Buck Institute for Education（现PBLWorks）制定的Gold Standard PBL框架是
 ### 1. 设计完全合理
 我们的5个智能体设计不仅有充分的理论依据，而且完美对标国际权威的PBL课程设计标准。
 
-### 2. 世界级标准
+### 2. 世界顶级标准
 这个架构符合Buck Institute for Education、High Tech High Schools等国际顶级教育机构的专业标准。
 
 ### 3. 实践验证

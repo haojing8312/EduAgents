@@ -25,7 +25,7 @@ EduAgents/
 ├── backend/                    # FastAPI + LangGraph后端系统
 │   ├── app/                   # 核心应用代码
 │   ├── agents/                # 多智能体协作引擎
-│   └── README.md              # 世界级后端架构说明
+│   └── README.md              # 后端架构说明
 ├── frontend/                   # Next.js前端应用
 │   ├── app/                   # Next.js应用代码
 │   └── README.md              # 前端开发指南

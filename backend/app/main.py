@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PBL智能助手 API",
     description="""
-    ## 世界级PBL课程设计智能助手后端API
+    ## AI时代创新教育PBL课程设计智能助手后端API
     
     基于FastAPI构建的高性能后端服务，集成多智能体协作框架，
     为PBL（项目式学习）课程设计提供智能化支持。

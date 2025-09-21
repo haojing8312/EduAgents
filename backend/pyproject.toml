@@ -1,7 +1,7 @@
 [project]
 name = "pbl-intelligent-assistant"
 version = "1.0.0"
-description = "世界级PBL课程设计智能助手后端API"
+description = "AI时代创新教育PBL课程设计智能助手后端API"
 authors = [
     {name = "PBL Assistant Team", email = "team@pbl-assistant.com"}
 ]
