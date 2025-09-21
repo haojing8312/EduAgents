@@ -314,6 +314,40 @@ async def cleanup_session(
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 
+@router.post("/test-real-agent", response_model=Dict[str, Any])
+async def test_real_agent_execution(
+    agent_id: str = Query(..., description="Agent to test (education_theorist, course_architect, etc.)"),
+    course_requirement: str = Query(default="AI伦理教育", description="Course requirement for testing")
+) -> Dict[str, Any]:
+    """
+    Test real agent execution (for development and validation)
+
+    This endpoint tests the real agent service integration by executing
+    a single agent with a test course requirement.
+    """
+    try:
+        from app.services.real_agent_service import execute_real_agent_work
+
+        result = await execute_real_agent_work(agent_id, course_requirement)
+
+        return {
+            "success": True,
+            "data": result,
+            "message": f"Real agent {agent_id} executed successfully",
+            "agent_id": agent_id,
+            "course_requirement": course_requirement
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Real agent {agent_id} execution failed",
+            "agent_id": agent_id,
+            "course_requirement": course_requirement
+        }
+
+
 @router.get("/capabilities", response_model=Dict[str, Any])
 async def get_system_capabilities() -> Dict[str, Any]:
     """

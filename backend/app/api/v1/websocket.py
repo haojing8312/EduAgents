@@ -178,9 +178,10 @@ async def start_course_design_collaboration(
                     "overall_progress": ((i * 100 + progress) / (total_steps * 100)) * 100
                 }, session_id)
 
-            # 调用实际的智能体工作
+            # 调用真实的智能体工作
             try:
-                result = await simulate_agent_work(agent_id, course_requirement)
+                from app.services.real_agent_service import execute_real_agent_work
+                result = await execute_real_agent_work(agent_id, course_requirement)
                 course_data[agent_id] = result
 
                 # 智能体完成
@@ -216,85 +217,16 @@ async def start_course_design_collaboration(
             "message": f"设计过程中发生错误: {str(e)}"
         }, session_id)
 
-async def simulate_agent_work(agent_id: str, course_requirement: str):
-    """模拟智能体工作"""
-
-    simulation_results = {
-        "education_theorist": {
-            "theory_framework": "AI时代教育理论框架",
-            "learning_principles": [
-                "人机协作学习原理",
-                "元认知发展理论",
-                "创造性思维培养",
-                "数字素养基础"
-            ],
-            "pedagogical_approach": "项目式学习 + AI辅助探究",
-            "course_requirement_analysis": f"基于需求分析：{course_requirement[:100]}..."
-        },
-
-        "course_architect": {
-            "course_structure": {
-                "phases": [
-                    {"name": "认知唤醒期", "duration": "2周", "focus": "AI时代意识培养"},
-                    {"name": "技能建构期", "duration": "4周", "focus": "核心能力发展"},
-                    {"name": "应用实践期", "duration": "2周", "focus": "综合项目实践"}
-                ],
-                "learning_path": "螺旋式递进，理论与实践并重"
-            },
-            "interdisciplinary_design": "科学+技术+人文+艺术整合"
-        },
-
-        "content_designer": {
-            "learning_scenarios": [
-                {
-                    "title": "AI伦理辩论赛",
-                    "description": "通过角色扮演探讨AI发展的社会影响",
-                    "ai_tools": ["ChatGPT", "Claude", "论证分析工具"]
-                },
-                {
-                    "title": "智慧城市设计挑战",
-                    "description": "运用设计思维和AI工具设计未来城市",
-                    "ai_tools": ["Midjourney", "数据分析平台", "建模软件"]
-                }
-            ],
-            "content_types": ["视频", "交互式模拟", "VR体验", "AI对话"]
-        },
-
-        "assessment_expert": {
-            "assessment_framework": {
-                "formative_assessment": "过程性评价，关注学习过程",
-                "summative_assessment": "成果性评价，关注能力表现",
-                "peer_assessment": "同伴评价，培养批判性思维",
-                "self_reflection": "自我反思，发展元认知能力"
-            },
-            "core_competencies_rubric": {
-                "human_ai_collaboration": "人机协作能力评价标准",
-                "creative_problem_solving": "创造性问题解决评价标准",
-                "digital_literacy": "数字素养评价标准"
-            }
-        },
-
-        "material_creator": {
-            "digital_resources": [
-                {
-                    "type": "交互式课件",
-                    "description": "支持AI辅助学习的多媒体课件",
-                    "tools": ["H5P", "Articulate", "AI对话集成"]
-                },
-                {
-                    "type": "项目工具包",
-                    "description": "学生项目实践所需的数字工具集",
-                    "tools": ["协作平台", "AI写作助手", "数据可视化工具"]
-                }
-            ],
-            "ai_integration_guide": "学生和教师AI工具使用指南"
-        }
-    }
-
-    # 模拟处理时间
-    await asyncio.sleep(1.5)
-
-    return simulation_results.get(agent_id, {"result": f"{agent_id} 模拟结果"})
+# DEPRECATED: simulate_agent_work function has been replaced with real agent execution
+# This function is kept for reference but is no longer used
+async def simulate_agent_work_deprecated(agent_id: str, course_requirement: str):
+    """
+    DEPRECATED: This function has been replaced with real agent execution
+    Use execute_real_agent_work from app.services.real_agent_service instead
+    """
+    # This function is now deprecated and replaced with real AI agent execution
+    # Keeping for reference only
+    pass
 
 @router.get("/health")
 async def websocket_health():
