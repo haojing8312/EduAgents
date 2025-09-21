@@ -197,3 +197,20 @@ backend/tests/integration/test_reports/
 test_*.md
 *_test_report.*
 coverage_report.*
+
+# Generated export files (course documents)
+backend/exports/
+exports/
+*.pdf
+*.docx
+*.html
+*.json
+
+# Test and validation files
+*_report_*.json
+test_*.py
+pbl_course_design_test.py
+enhanced_system_test_report_*.json
+complete_enhanced_system_report_*.json
+user_requirements_validation_report_*.json
+pbl_business_test_report_*.json
