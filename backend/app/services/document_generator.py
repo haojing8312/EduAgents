@@ -21,9 +21,9 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markdown.extensions import codehilite, tables, toc
 from pptx import Presentation
 from pptx.util import Inches as PptxInches
-from python-docx import Document
-from python-docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-from python-docx.shared import Inches, Pt
+from docx import Document
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.shared import Inches, Pt
 from weasyprint import CSS, HTML
 
 from ..core.config import settings

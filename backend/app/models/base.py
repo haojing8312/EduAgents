@@ -80,7 +80,7 @@ class BaseModel(Base):
     )
 
     # 扩展字段（JSON）
-    metadata = Column(JSON, nullable=True, comment="扩展元数据")
+    extra_data = Column(JSON, nullable=True, comment="扩展元数据")
 
     def __repr__(self) -> str:
         """对象字符串表示"""

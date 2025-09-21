@@ -32,3 +32,24 @@ AsyncSessionLocal = sessionmaker(
 async def get_session() -> AsyncSession:
     """获取数据库会话"""
     return AsyncSessionLocal()
+
+
+async def get_db() -> AsyncSession:
+    """FastAPI dependency for database sessions"""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+async def init_db():
+    """Initialize database tables"""
+    from app.models import Base
+    async with engine.begin() as conn:
+        # This will create all tables
+        await conn.run_sync(Base.metadata.create_all)
