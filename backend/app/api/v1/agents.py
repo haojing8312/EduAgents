@@ -22,6 +22,62 @@ router = APIRouter(prefix="/agents", tags=["Multi-Agent System"])
 agent_service = AgentService()
 
 
+@router.get("/status", response_model=Dict[str, Any])
+async def get_agents_status():
+    """
+    获取多智能体系统状态
+
+    返回5个专业智能体的状态信息
+    """
+    agents_info = [
+        {
+            "type": "education_theorist",
+            "name": "教育理论专家",
+            "description": "AI时代教育理论和PBL方法论",
+            "status": "ready",
+            "capabilities": ["教育理论分析", "能力导向设计", "AI教育哲学"]
+        },
+        {
+            "type": "course_architect",
+            "name": "课程架构师",
+            "description": "面向AI时代能力的课程结构设计",
+            "status": "ready",
+            "capabilities": ["跨学科整合", "计算思维培养", "项目式学习架构"]
+        },
+        {
+            "type": "content_designer",
+            "name": "内容设计师",
+            "description": "AI时代场景化学习内容创作",
+            "status": "ready",
+            "capabilities": ["真实问题情境", "人机协作活动", "数字素养实践"]
+        },
+        {
+            "type": "assessment_expert",
+            "name": "评估专家",
+            "description": "AI时代核心能力评价体系设计",
+            "status": "ready",
+            "capabilities": ["过程性评价", "创造力评估", "元认知测评"]
+        },
+        {
+            "type": "material_creator",
+            "name": "素材创作者",
+            "description": "AI时代数字化资源生成",
+            "status": "ready",
+            "capabilities": ["多媒体内容", "交互式工具", "AI工具指南"]
+        }
+    ]
+
+    return {
+        "success": True,
+        "agents": agents_info,
+        "total_agents": len(agents_info),
+        "all_ready": True,
+        "system_status": "operational",
+        "ai_native": True,
+        "collaboration_enabled": True
+    }
+
+
 # Request/Response Models
 class CourseRequirements(BaseModel):
     """Course design requirements"""
