@@ -78,16 +78,27 @@ open index.html  # 或直接用浏览器打开
 
 ### 🖥️ 本地开发环境
 ```bash
-# 1. 启动后端服务
+# 1. 启动后端服务 (默认48284端口)
 cd backend
-docker-compose -f docker-compose.dev.yml up -d
-poetry install
-poetry run uvicorn app.main:app --reload --port 8000
+uv sync                              # 安装依赖
+uv run python scripts/start.py      # 启动开发服务器
 
-# 2. 启动前端应用
+# 2. 启动前端应用 (默认48285端口)
 cd frontend
-npm install
-npm run dev
+npm install                          # 安装依赖
+npm run dev                          # 启动开发服务器
+```
+
+### 🔧 开发工具
+```bash
+# 后端测试
+cd backend
+uv run python scripts/test_enhanced.py    # 运行完整测试套件
+uv run python scripts/test_enhanced.py --business  # 业务穿越测试
+
+# 后端直接启动（备选方式）
+cd backend
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 48284
 ```
 
 ### ⚡ 使用体验

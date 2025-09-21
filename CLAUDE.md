@@ -69,47 +69,49 @@ agents/                           # 项目根目录
 
 ### 快速启动
 ```bash
-# 启动完整系统（推荐）
-docker-compose up -d
+# 1. 启动后端服务 (默认48284端口)
+cd backend
+uv sync                              # 安装依赖
+uv run python scripts/start.py      # 启动开发服务器
 
-# 或者分别启动各服务
-cd backend && uv run scripts/dev.py    # 使用uv (推荐)
-cd frontend && npm run dev
+# 2. 启动前端应用 (默认48285端口)
+cd frontend
+npm install                          # 安装依赖
+npm run dev                          # 启动开发服务器
 ```
 
 ### 开发工作流
 ```bash
 # 后端开发 (使用uv - 推荐)
 cd backend
-uv sync                          # 安装依赖
-uv run scripts/test.py           # 运行测试
-uv run scripts/test.py --cov     # 测试覆盖率
-uv run scripts/format.py         # 代码格式化
-uv run scripts/lint.py           # 代码检查
+uv sync                                        # 安装依赖
+uv run python scripts/start.py                # 启动开发服务器
+uv run python scripts/test_enhanced.py        # 运行完整测试套件
+uv run python scripts/test_enhanced.py --business  # 业务穿越测试
+
+# 直接启动方式（备选）
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 48284
 
 # 前端开发
-cd frontend  
-npm install
-npm run dev                      # 开发服务器
-npm run test                     # 运行测试
-npm run build                    # 构建生产版本
-
-# 数据库迁移
-cd backend
-uv run alembic upgrade head      # 应用迁移
-uv run alembic revision -m "描述" # 创建新迁移
+cd frontend
+npm install                          # 安装依赖
+npm run dev                          # 开发服务器 (48285端口)
+npm run build                        # 构建生产版本
+npm run lint                         # 代码检查
 ```
 
 ### 测试命令
 ```bash
-# 后端测试 (使用uv - 推荐)
-cd backend && uv run scripts/test.py
+# 后端增强测试套件
+cd backend
+uv run python scripts/test_enhanced.py              # 运行所有测试
+uv run python scripts/test_enhanced.py --unit       # 单元测试
+uv run python scripts/test_enhanced.py --integration # 集成测试
+uv run python scripts/test_enhanced.py --business   # 业务穿越测试
+uv run python scripts/test_enhanced.py --coverage   # 测试覆盖率
 
 # 前端测试
 cd frontend && npm run test
-
-# 运行所有测试
-npm run test:all  # 如果配置了跨项目测试脚本
 ```
 
 ## 📋 代码规范

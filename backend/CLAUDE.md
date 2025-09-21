@@ -54,28 +54,28 @@ pip install -r requirements.txt
 
 ### 开发服务器
 ```bash
-# 🚀 推荐：使用uv运行开发脚本
-uv run scripts/dev.py
+# 🚀 推荐：使用简化启动脚本 (默认48284端口)
+uv run python scripts/start.py
 
 # 或者直接使用uv run
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 48284
+
+# 自定义端口
+uv run python scripts/start.py --port 8000
 
 # 传统方式（需要激活虚拟环境）
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 48284
 ```
 
 ### 测试
 ```bash
-# 🧪 推荐：使用uv运行增强测试脚本
-uv run scripts/test.py                    # 运行所有测试(包含业务穿越测试)
-uv run scripts/test.py --unit            # 只运行单元测试
-uv run scripts/test.py --integration     # 只运行集成测试
-uv run scripts/test.py --business        # 只运行业务穿越测试
-uv run scripts/test.py --cov             # 包含覆盖率报告
-uv run scripts/test.py --parallel        # 并行运行测试
-
-# 直接运行业务穿越测试
-uv run python scripts/run_business_flow_test.py
+# 🧪 推荐：使用增强测试脚本
+uv run python scripts/test_enhanced.py              # 运行所有测试(包含业务穿越测试)
+uv run python scripts/test_enhanced.py --unit       # 只运行单元测试
+uv run python scripts/test_enhanced.py --integration # 只运行集成测试
+uv run python scripts/test_enhanced.py --business   # 只运行业务穿越测试
+uv run python scripts/test_enhanced.py --coverage   # 包含覆盖率报告
+uv run python scripts/test_enhanced.py --parallel   # 并行运行测试
 
 # 或者直接使用uv run
 uv run pytest tests/ -v
@@ -98,7 +98,7 @@ python -m pytest tests/
 #### 快速使用
 ```bash
 # 运行业务穿越测试（推荐）
-uv run scripts/test.py --business
+uv run python scripts/test_enhanced.py --business
 
 # 查看详细测试报告
 ls tests/integration/test_reports/
