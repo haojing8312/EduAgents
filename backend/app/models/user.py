@@ -176,6 +176,13 @@ class User(BaseModel):
         self.last_login_ip = ip_address
         self.login_count += 1
 
+    # 关系
+    collaborated_courses = relationship(
+        "Course",
+        secondary="pbl_core.course_collaborators",
+        back_populates="collaborations"
+    )
+
     def __repr__(self) -> str:
         return f"<User(id={self.id}, username={self.username}, role={self.role})>"
 

@@ -446,6 +446,19 @@ Consider:
             "transition_points": [],
         }
 
+    async def process(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """Process method for RealAgentService compatibility"""
+        # Create minimal AgentState for backward compatibility
+        from ..core.state import AgentState
+        state = AgentState(session_id="default")
+
+        result = await self.process_task(task, state, stream=False)
+        if hasattr(result, '__aiter__'):
+            # Handle generator result
+            async for final_result in result:
+                return final_result
+        return result
+
     def _get_required_fields(self) -> List[str]:
         """Get required fields for task input"""
         return ["type"]

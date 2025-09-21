@@ -50,6 +50,35 @@ async def get_db() -> AsyncSession:
 async def init_db():
     """Initialize database tables"""
     from app.models import Base
-    async with engine.begin() as conn:
-        # This will create all tables
-        await conn.run_sync(Base.metadata.create_all)
+    from app.core.config import get_settings
+    from sqlalchemy import text
+
+    settings = get_settings()
+
+    try:
+        async with engine.begin() as conn:
+            # Set the search path to our schema
+            await conn.execute(text(f"SET search_path TO {settings.POSTGRES_SCHEMA}, public"))
+
+            # Create all tables in the specified schema
+            await conn.run_sync(Base.metadata.create_all)
+
+            print(f"✅ Tables created successfully in schema: {settings.POSTGRES_SCHEMA}")
+    except Exception as e:
+        print(f"❌ Failed to initialize database: {e}")
+        # Try fallback approach using engine configuration
+        try:
+            # Configure engine with schema-specific connection events
+            from sqlalchemy import event
+
+            @event.listens_for(engine.sync_engine, "connect")
+            def set_search_path(dbapi_connection, connection_record):
+                with dbapi_connection.cursor() as cursor:
+                    cursor.execute(f"SET search_path TO {settings.POSTGRES_SCHEMA}, public")
+
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                print(f"✅ Tables created successfully using fallback method in schema: {settings.POSTGRES_SCHEMA}")
+        except Exception as fallback_error:
+            print(f"❌ Fallback method also failed: {fallback_error}")
+            raise e

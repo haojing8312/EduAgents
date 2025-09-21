@@ -42,7 +42,11 @@ class CoursePersistenceService:
 
     async def __aenter__(self):
         """异步上下文管理器入口"""
-        self.session = await get_session()
+        try:
+            self.session = await get_session()
+        except Exception as e:
+            logger.warning(f"⚠️ 数据库连接失败，将使用缓存模式: {e}")
+            self.session = None
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -75,6 +79,15 @@ class CoursePersistenceService:
         """
         try:
             logger.info(f"💾 开始保存课程设计 - 会话: {session_id}")
+
+            # 检查数据库连接
+            if not self.session:
+                logger.warning(f"⚠️ 数据库不可用，跳过数据库保存 - 会话: {session_id}")
+                # 尝试保存到缓存
+                cache_key = f"course_design:{session_id}"
+                await set_cache(cache_key, course_data, expire=3600)  # 1小时
+                logger.info(f"📱 课程设计已缓存: {cache_key}")
+                return None
 
             # 提取课程基础信息
             course_info = await self._extract_course_info(course_data, session_id)

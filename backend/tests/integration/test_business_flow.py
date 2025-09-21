@@ -32,7 +32,7 @@ fake = Faker('zh_CN')
 class BusinessFlowTester:
     """业务流程测试器"""
 
-    def __init__(self, base_url: str = "http://localhost:48282"):
+    def __init__(self, base_url: str = "http://localhost:48284"):
         self.base_url = base_url
         # 创建httpx客户端时禁用环境变量代理，避免测试时的网络问题
         self.client = httpx.AsyncClient(timeout=60.0, trust_env=False)

@@ -53,7 +53,6 @@ class Settings(BaseSettings):
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-            f"?options=-csearch_path={self.POSTGRES_SCHEMA}"
         )
 
     @property
@@ -62,7 +61,6 @@ class Settings(BaseSettings):
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-            f"?options=-csearch_path={self.POSTGRES_SCHEMA}"
         )
 
     # Redis配置

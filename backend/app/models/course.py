@@ -109,20 +109,22 @@ class ResourceType(str, Enum):
 course_tags = Table(
     "course_tags",
     Base.metadata,
-    Column("course_id", UUID(as_uuid=True), ForeignKey("courses.id"), primary_key=True),
-    Column("tag_id", UUID(as_uuid=True), ForeignKey("tags.id"), primary_key=True),
+    Column("course_id", UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), primary_key=True),
+    Column("tag_id", UUID(as_uuid=True), ForeignKey("pbl_core.tags.id"), primary_key=True),
+    schema="pbl_core"
 )
 
 # 多对多关联表：课程-协作者
 course_collaborators = Table(
     "course_collaborators",
     Base.metadata,
-    Column("course_id", UUID(as_uuid=True), ForeignKey("courses.id"), primary_key=True),
-    Column("user_id", UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True),
+    Column("course_id", UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey("pbl_core.users.id"), primary_key=True),
     Column(
         "role", String(50), default="collaborator"
     ),  # owner, editor, viewer, collaborator
     Column("permissions", JSON, default=dict),  # 权限配置
+    schema="pbl_core"
 )
 
 
@@ -194,7 +196,7 @@ class Course(BaseModel):
     # 版本控制
     version_number = Column(String(20), default="1.0.0", comment="版本号")
     parent_course_id = Column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=True, comment="父课程ID"
+        UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), nullable=True, comment="父课程ID"
     )
 
     # 统计信息
@@ -252,7 +254,7 @@ class Lesson(BaseModel):
     __tablename__ = "lessons"
 
     course_id = Column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False, comment="所属课程"
+        UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), nullable=False, comment="所属课程"
     )
     title = Column(String(200), nullable=False, comment="单元标题")
     description = Column(Text, nullable=True, comment="单元描述")
@@ -285,10 +287,10 @@ class Assessment(BaseModel):
     __tablename__ = "assessments"
 
     course_id = Column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False, comment="所属课程"
+        UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), nullable=False, comment="所属课程"
     )
     lesson_id = Column(
-        UUID(as_uuid=True), ForeignKey("lessons.id"), nullable=True, comment="所属单元"
+        UUID(as_uuid=True), ForeignKey("pbl_core.lessons.id"), nullable=True, comment="所属单元"
     )
 
     title = Column(String(200), nullable=False, comment="评估标题")
@@ -315,10 +317,10 @@ class Resource(BaseModel):
     __tablename__ = "resources"
 
     course_id = Column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False, comment="所属课程"
+        UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), nullable=False, comment="所属课程"
     )
     lesson_id = Column(
-        UUID(as_uuid=True), ForeignKey("lessons.id"), nullable=True, comment="所属单元"
+        UUID(as_uuid=True), ForeignKey("pbl_core.lessons.id"), nullable=True, comment="所属单元"
     )
 
     title = Column(String(200), nullable=False, comment="资源标题")
@@ -363,7 +365,7 @@ class CourseTemplate(BaseModel):
 
     # 关联模板课程（可选）
     course_id = Column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=True, comment="关联课程"
+        UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), nullable=True, comment="关联课程"
     )
     course = relationship("Course", back_populates="templates")
 
@@ -374,7 +376,7 @@ class CourseExport(BaseModel):
     __tablename__ = "course_exports"
 
     course_id = Column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False, comment="课程ID"
+        UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), nullable=False, comment="课程ID"
     )
     format = Column(String(20), nullable=False, comment="导出格式")
     status = Column(String(20), default="pending", comment="导出状态")
@@ -415,10 +417,10 @@ class CourseReview(BaseModel):
     __tablename__ = "course_reviews"
 
     course_id = Column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False, comment="课程ID"
+        UUID(as_uuid=True), ForeignKey("pbl_core.courses.id"), nullable=False, comment="课程ID"
     )
     reviewer_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, comment="评价者ID"
+        UUID(as_uuid=True), ForeignKey("pbl_core.users.id"), nullable=False, comment="评价者ID"
     )
 
     rating = Column(Integer, nullable=False, comment="评分（1-5）")
