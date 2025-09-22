@@ -150,10 +150,18 @@ class BusinessFlowTester:
             )
 
             if response.status_code != 200:
-                self.log_test_result("创建设计会话", False, {
+                error_details = {
                     "status_code": response.status_code,
-                    "error": response.text
-                })
+                    "response_text": response.text,
+                    "response_headers": dict(response.headers)
+                }
+                try:
+                    error_json = response.json()
+                    error_details["response_json"] = error_json
+                except:
+                    pass
+                self.log_test_result("创建设计会话", False, error_details)
+                logger.error(f"创建设计会话失败 - 状态码: {response.status_code}, 详细错误: {response.text}")
                 return False
 
             session_data = response.json()["data"]
@@ -167,7 +175,18 @@ class BusinessFlowTester:
             )
 
             if response.status_code not in [200, 202]:  # 接受异步处理
-                self.log_test_result("启动设计流程", False, {"status_code": response.status_code})
+                error_details = {
+                    "status_code": response.status_code,
+                    "response_text": response.text,
+                    "response_headers": dict(response.headers)
+                }
+                try:
+                    error_json = response.json()
+                    error_details["response_json"] = error_json
+                except:
+                    pass
+                self.log_test_result("启动设计流程", False, error_details)
+                logger.error(f"启动设计流程失败 - 状态码: {response.status_code}, 详细错误: {response.text}")
                 return False
 
             # 3. 获取会话状态
@@ -456,7 +475,18 @@ async def main():
             print("❌ 测试异常结束")
             print(json.dumps(report, indent=2, ensure_ascii=False))
 
-        return 0 if report.get("summary", {}).get("failed_tests", 1) == 0 else 1
+        # 核心业务流程测试必须100%通过
+        success_rate_str = report.get("summary", {}).get("success_rate", "0%")
+        success_rate = float(success_rate_str.rstrip('%'))
+        failed_tests = report.get("summary", {}).get("failed_tests", 1)
+
+        if success_rate == 100.0 and failed_tests == 0:
+            print(f"🎯 成功率 {success_rate_str}，所有核心业务流程测试通过")
+            return 0
+        else:
+            print(f"❌ 成功率 {success_rate_str}，核心业务流程测试未完全通过")
+            print("核心业务接口必须100%成功才能通过测试")
+            return 1
 
     except KeyboardInterrupt:
         logger.info("用户中断测试")

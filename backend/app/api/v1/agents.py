@@ -191,13 +191,19 @@ async def start_design_process(
                 },
             )
         else:
-            # Return complete result
-            result = await agent_service.start_course_design(session_id, stream=False)
-            return {
-                "success": True,
-                "data": result,
-                "message": "Course design completed successfully",
-            }
+            # Return complete result - collect from async generator
+            result = None
+            async for response in agent_service.start_course_design(session_id, stream=False):
+                result = response  # Get the final result
+
+            if result:
+                return {
+                    "success": True,
+                    "data": result,
+                    "message": "Course design completed successfully",
+                }
+            else:
+                raise HTTPException(status_code=500, detail="No result returned from design process")
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
