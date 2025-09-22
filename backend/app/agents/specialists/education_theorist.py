@@ -4,6 +4,7 @@ AI时代教育理论专家智能体
 确保课程设计符合AI时代教育目标和6大核心能力培养要求
 """
 
+import json
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, List, Optional
 

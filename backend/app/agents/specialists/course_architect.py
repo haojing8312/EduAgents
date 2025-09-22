@@ -222,6 +222,9 @@ Create a detailed course architecture including:
             prompt, response_schema, self._system_prompts["architecture_design"]
         )
 
+        # Debug: print the result to see what we got
+        print(f"🔍 Course Architect got result: {type(result)} - {result}")
+
         # Request validation from education theorist
         await self.request_collaboration(
             AgentRole.EDUCATION_THEORIST,
