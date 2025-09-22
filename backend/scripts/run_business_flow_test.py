@@ -42,7 +42,7 @@ class BusinessFlowTestRunner:
             "ENVIRONMENT": "test",
             "DATABASE_URL": "sqlite:///./test.db",  # 使用SQLite进行测试
             "REDIS_URL": "redis://localhost:6379/1",  # 使用不同的Redis数据库
-            "TEST_BASE_URL": "http://localhost:48282",
+            "TEST_BASE_URL": "http://localhost:48284",
             "PYTHONPATH": str(self.project_root),
             "LOG_LEVEL": "INFO",
         }
@@ -59,71 +59,27 @@ class BusinessFlowTestRunner:
 
         return test_env
 
-    async def start_backend_server(self, env: dict) -> bool:
-        """启动后端服务器"""
-        logger.info("🚀 启动后端服务器...")
+    async def check_backend_server(self) -> bool:
+        """检查后端服务器是否已运行"""
+        import httpx
+
+        logger.info("🔍 检查后端服务器状态...")
 
         try:
-            # 使用uv运行后端服务器
-            cmd = [
-                "uv", "run", "uvicorn", "app.simple_test_main:app",
-                "--host", "0.0.0.0",
-                "--port", "48282",
-                "--reload"
-            ]
-
-            self.backend_process = subprocess.Popen(
-                cmd,
-                cwd=self.project_root,
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-
-            # 等待服务器启动
-            logger.info("⏳ 等待后端服务器启动...")
-            await asyncio.sleep(5)
-
-            # 检查进程是否还在运行
-            if self.backend_process.poll() is not None:
-                # 进程已经退出，读取错误信息
-                stdout, stderr = self.backend_process.communicate()
-                logger.error(f"后端服务器启动失败:")
-                logger.error(f"stdout: {stdout}")
-                logger.error(f"stderr: {stderr}")
-                return False
-
-            logger.info("✅ 后端服务器启动成功")
-            return True
-
+            # 尝试连接到48284端口的服务器
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get("http://localhost:48284/health")
+                if response.status_code == 200:
+                    health_data = response.json()
+                    logger.info(f"✅ 后端服务器已运行: {health_data}")
+                    return True
+                else:
+                    logger.error(f"❌ 后端服务器健康检查失败: {response.status_code}")
+                    return False
         except Exception as e:
-            logger.error(f"启动后端服务器时出错: {str(e)}")
+            logger.error(f"❌ 无法连接到后端服务器 (http://localhost:48284): {str(e)}")
+            logger.error("💡 请先启动后端服务: ./scripts/start.sh")
             return False
-
-    def stop_backend_server(self):
-        """停止后端服务器"""
-        if self.backend_process:
-            logger.info("🛑 停止后端服务器...")
-            try:
-                # 发送SIGTERM信号
-                self.backend_process.terminate()
-
-                # 等待进程结束
-                try:
-                    self.backend_process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    # 如果进程没有在10秒内结束，强制杀死
-                    logger.warning("强制终止后端服务器进程")
-                    self.backend_process.kill()
-                    self.backend_process.wait()
-
-                logger.info("✅ 后端服务器已停止")
-
-            except Exception as e:
-                logger.error(f"停止后端服务器时出错: {str(e)}")
-
-            self.backend_process = None
 
     async def run_business_flow_test(self, env: dict) -> int:
         """运行业务流程测试"""
@@ -190,9 +146,9 @@ class BusinessFlowTestRunner:
             # 1. 设置环境
             env = self.setup_environment()
 
-            # 2. 启动后端服务器
-            if not await self.start_backend_server(env):
-                logger.error("❌ 后端服务器启动失败，测试终止")
+            # 2. 检查后端服务器是否已运行
+            if not await self.check_backend_server():
+                logger.error("❌ 后端服务器未运行，测试终止")
                 return 1
 
             # 3. 运行业务流程测试
@@ -212,15 +168,10 @@ class BusinessFlowTestRunner:
             logger.error(f"测试执行异常: {str(e)}")
             return 1
 
-        finally:
-            # 清理资源
-            self.stop_backend_server()
-
     def setup_signal_handlers(self):
         """设置信号处理器"""
         def signal_handler(signum, frame):
-            logger.info("收到中断信号，正在清理...")
-            self.stop_backend_server()
+            logger.info("收到中断信号，正在退出...")
             sys.exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)

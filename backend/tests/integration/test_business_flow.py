@@ -503,7 +503,7 @@ class BusinessFlowTester:
 async def main():
     """主函数"""
     # 从环境变量获取配置
-    base_url = os.getenv("TEST_BASE_URL", "http://localhost:48282")
+    base_url = os.getenv("TEST_BASE_URL", "http://localhost:48284")
 
     # 创建测试器
     tester = BusinessFlowTester(base_url)
