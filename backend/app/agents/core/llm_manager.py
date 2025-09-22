@@ -411,7 +411,6 @@ class LLMManager:
                             fallback_model.value,
                             temperature,
                             max_tokens,
-                            stream,
                         )
                     else:
                         result = await self._call_openai(
@@ -419,7 +418,6 @@ class LLMManager:
                             fallback_model.value,
                             temperature,
                             max_tokens,
-                            stream,
                         )
 
                     if stream:

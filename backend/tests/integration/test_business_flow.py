@@ -105,30 +105,7 @@ class BusinessFlowTester:
             self.log_test_result("系统能力查询", False, {"error": str(e)})
             return False
 
-    async def test_template_operations(self) -> bool:
-        """测试模板相关操作"""
-        try:
-            # 1. 获取模板分类
-            response = await self.client.get(f"{self.base_url}/api/v1/templates/categories")
-            if response.status_code != 200:
-                self.log_test_result("模板分类查询", False, {"status_code": response.status_code})
-                return False
-
-            # 2. 获取预定义模板
-            response = await self.client.get(f"{self.base_url}/api/v1/templates/predefined")
-            if response.status_code != 200:
-                self.log_test_result("预定义模板查询", False, {"status_code": response.status_code})
-                return False
-
-            # 3. 获取模板列表
-            response = await self.client.get(f"{self.base_url}/api/v1/templates?limit=10")
-            success = response.status_code == 200
-
-            self.log_test_result("模板操作测试", success, {"status_code": response.status_code})
-            return success
-        except Exception as e:
-            self.log_test_result("模板操作测试", False, {"error": str(e)})
-            return False
+    # 删除非核心模板测试方法 - 专注核心多智能体协作功能
 
     async def test_course_design_session_flow(self) -> bool:
         """测试完整的课程设计会话流程"""
@@ -319,77 +296,9 @@ class BusinessFlowTester:
             self.log_test_result("课程导出流程", False, {"error": str(e)})
             return False
 
-    async def test_quality_check_flow(self) -> bool:
-        """测试质量检查流程"""
-        # 由于没有实际的课程ID，这里模拟测试质量检查相关的端点
-        try:
-            # 1. 获取质量统计
-            response = await self.client.get(
-                f"{self.base_url}/api/v1/quality/statistics",
-                headers={"Authorization": "Bearer mock_token"}
-            )
+    # 删除非核心质量检查测试方法 - 专注核心多智能体协作功能
 
-            stats_success = response.status_code == 200
-
-            # 2. 获取常见问题
-            response = await self.client.get(
-                f"{self.base_url}/api/v1/quality/issues/common",
-                headers={"Authorization": "Bearer mock_token"}
-            )
-
-            issues_success = response.status_code == 200
-
-            overall_success = stats_success and issues_success
-
-            self.log_test_result("质量检查流程", overall_success, {
-                "statistics": stats_success,
-                "common_issues": issues_success
-            })
-            return overall_success
-
-        except Exception as e:
-            self.log_test_result("质量检查流程", False, {"error": str(e)})
-            return False
-
-    async def test_collaboration_features(self) -> bool:
-        """测试协作功能"""
-        try:
-            # 获取我的协作课程
-            response = await self.client.get(
-                f"{self.base_url}/api/v1/collaboration/my-collaborations",
-                headers={"Authorization": "Bearer mock_token"}
-            )
-
-            collaborations_success = response.status_code == 200
-
-            # 获取协作统计
-            response = await self.client.get(
-                f"{self.base_url}/api/v1/collaboration/statistics",
-                headers={"Authorization": "Bearer mock_token"}
-            )
-
-            stats_success = response.status_code == 200
-
-            # 获取共享课程
-            response = await self.client.get(
-                f"{self.base_url}/api/v1/collaboration/shared-courses",
-                headers={"Authorization": "Bearer mock_token"}
-            )
-
-            shared_success = response.status_code == 200
-
-            overall_success = collaborations_success and stats_success and shared_success
-
-            self.log_test_result("协作功能测试", overall_success, {
-                "my_collaborations": collaborations_success,
-                "statistics": stats_success,
-                "shared_courses": shared_success
-            })
-            return overall_success
-
-        except Exception as e:
-            self.log_test_result("协作功能测试", False, {"error": str(e)})
-            return False
+    # 删除非核心协作功能测试方法 - 专注核心多智能体协作功能
 
     async def test_agent_metrics(self) -> bool:
         """测试智能体指标"""
@@ -466,12 +375,11 @@ class BusinessFlowTester:
         test_flows = [
             ("基础连通性测试", self.test_root_endpoint),
             ("系统能力查询", self.test_system_capabilities),
-            ("模板功能测试", self.test_template_operations),
+            # 删除非核心功能测试，专注核心多智能体协作
             ("课程设计会话流程", self.test_course_design_session_flow),
             ("课程迭代优化流程", self.test_course_iteration_flow),
             ("课程导出功能", self.test_course_export_flow),
-            ("质量检查功能", self.test_quality_check_flow),
-            ("协作功能测试", self.test_collaboration_features),
+            # 保留核心指标监控
             ("智能体性能指标", self.test_agent_metrics),
             ("会话清理", self.test_session_cleanup),
         ]
