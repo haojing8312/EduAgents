@@ -25,7 +25,7 @@ from app.models.course import (
 )
 from app.models.user import User
 from app.utils.cache import get_cache, set_cache
-from app.services.vector_service import add_course_to_vectors
+# 移除向量数据库导入，专注核心功能
 
 logger = logging.getLogger(__name__)
 
@@ -140,8 +140,7 @@ class CoursePersistenceService:
             # 缓存课程数据
             await self._cache_course_data(course.id, course_data)
 
-            # 添加到向量数据库
-            await self._add_to_vector_store(course.id, course_info, course_data)
+            # 移除向量数据库存储，专注核心功能
 
             logger.info(f"✅ 课程设计保存成功 - 课程ID: {course.id}")
             return course.id
@@ -497,69 +496,7 @@ class CoursePersistenceService:
         except Exception as e:
             logger.warning(f"⚠️ 缓存课程数据失败: {e}")
 
-    async def _add_to_vector_store(
-        self,
-        course_id: uuid.UUID,
-        course_info: Dict[str, Any],
-        course_data: Dict[str, Any]
-    ):
-        """添加到向量数据库"""
-        try:
-            # 构建用于向量化的文本内容
-            content_parts = [
-                course_info["title"],
-                course_info["description"],
-                " ".join(course_info["learning_objectives"]),
-                course_info.get("project_context", ""),
-                course_info.get("driving_question", "")
-            ]
-
-            # 添加智能体生成的关键内容
-            education_theorist = course_data.get("education_theorist", {})
-            if education_theorist.get("theory_framework"):
-                content_parts.append(str(education_theorist["theory_framework"]))
-
-            content_designer = course_data.get("content_designer", {})
-            scenarios = content_designer.get("learning_scenarios", [])
-            for scenario in scenarios:
-                content_parts.extend([
-                    scenario.get("title", ""),
-                    scenario.get("description", "")
-                ])
-
-            course_content = " ".join(filter(None, content_parts))
-
-            # 构建元数据
-            metadata = {
-                "course_id": str(course_id),
-                "title": course_info["title"],
-                "subject": course_info["subject"],
-                "education_level": course_info["education_level"],
-                "difficulty_level": course_info["difficulty_level"],
-                "ai_generated": True,
-                "created_at": datetime.utcnow().isoformat(),
-                "agents_used": list(course_data.keys())
-            }
-
-            # 添加到增强版向量数据库
-            success = await add_course_to_vectors(
-                course_id=str(course_id),
-                course_data={
-                    "course_requirement": course_content,
-                    "agents_data": course_data,
-                    "ai_generated": True,
-                    "session_id": course_data.get("session_id", "unknown")
-                },
-                agent_context=metadata
-            )
-
-            if success:
-                logger.info(f"🔍 课程已添加到向量数据库: {course_id}")
-            else:
-                logger.warning(f"⚠️ 向量数据库添加失败: {course_id}")
-
-        except Exception as e:
-            logger.warning(f"⚠️ 向量数据库操作失败: {e}")
+    # 移除向量数据库存储方法，专注核心功能
 
     async def get_course_by_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """根据会话ID获取课程"""

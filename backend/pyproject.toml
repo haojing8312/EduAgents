@@ -31,8 +31,7 @@ dependencies = [
     # 缓存
     "redis>=5.0.1",
     "hiredis>=2.2.3",
-    # 向量数据库
-    "chromadb>=0.4.15",
+    # 移除向量数据库依赖，专注核心功能
     # AI和智能体框架
     "langchain>=0.0.350",
     "langchain-core>=0.1.0",

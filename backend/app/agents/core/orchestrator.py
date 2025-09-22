@@ -82,40 +82,41 @@ class PBLOrchestrator:
         }
 
     def _build_workflow(self) -> StateGraph:
-        """Build the LangGraph workflow for agent coordination"""
+        """构建用于智能体协作的LangGraph工作流"""
 
-        # Create the state graph
+        # 创建状态图（StateGraph），以AgentState为状态
         workflow = StateGraph(AgentState)
 
-        # Add nodes for each phase and agent
-        workflow.add_node("initialize", self._initialize_phase)
-        workflow.add_node("theoretical_foundation", self._theoretical_foundation_phase)
-        workflow.add_node("architecture_design", self._architecture_design_phase)
-        workflow.add_node("content_creation", self._content_creation_phase)
-        workflow.add_node("assessment_design", self._assessment_design_phase)
-        workflow.add_node("material_production", self._material_production_phase)
-        workflow.add_node("review_iteration", self._review_iteration_phase)
-        workflow.add_node("finalize", self._finalization_phase)
+        # 为每个阶段和智能体添加节点
+        workflow.add_node("initialize", self._initialize_phase)  # 初始化阶段
+        workflow.add_node("theoretical_foundation", self._theoretical_foundation_phase)  # 理论基础阶段
+        workflow.add_node("architecture_design", self._architecture_design_phase)  # 课程架构设计阶段
+        workflow.add_node("content_creation", self._content_creation_phase)  # 内容创作阶段
+        workflow.add_node("assessment_design", self._assessment_design_phase)  # 评估设计阶段
+        workflow.add_node("material_production", self._material_production_phase)  # 教学资料生成阶段
+        workflow.add_node("review_iteration", self._review_iteration_phase)  # 复盘迭代阶段
+        workflow.add_node("finalize", self._finalization_phase)  # 最终收尾阶段
 
-        # Define edges based on mode
+        # 根据不同模式定义节点之间的连接关系
         if self.mode == OrchestratorMode.FULL_COURSE:
-            # Full sequential workflow
-            workflow.set_entry_point("initialize")
+            # 全流程顺序工作流
+            workflow.set_entry_point("initialize")  # 设置入口节点
             workflow.add_edge("initialize", "theoretical_foundation")
             workflow.add_edge("theoretical_foundation", "architecture_design")
             workflow.add_edge("architecture_design", "content_creation")
             workflow.add_edge("content_creation", "assessment_design")
             workflow.add_edge("assessment_design", "material_production")
+            # material_production 阶段后根据条件判断是否需要迭代
             workflow.add_conditional_edges(
                 "material_production",
                 self._should_iterate,
                 {"iterate": "review_iteration", "finalize": "finalize"},
             )
-            workflow.add_edge("review_iteration", "architecture_design")
-            workflow.add_edge("finalize", END)
+            workflow.add_edge("review_iteration", "architecture_design")  # 迭代后回到架构设计
+            workflow.add_edge("finalize", END)  # 结束节点
 
         elif self.mode == OrchestratorMode.QUICK_DESIGN:
-            # Streamlined workflow
+            # 精简流程
             workflow.set_entry_point("initialize")
             workflow.add_edge("initialize", "architecture_design")
             workflow.add_edge("architecture_design", "content_creation")
@@ -123,7 +124,7 @@ class PBLOrchestrator:
             workflow.add_edge("finalize", END)
 
         elif self.mode == OrchestratorMode.ITERATION:
-            # Iteration-focused workflow
+            # 迭代优化流程
             workflow.set_entry_point("review_iteration")
             workflow.add_edge("review_iteration", "architecture_design")
             workflow.add_edge("architecture_design", "content_creation")
@@ -132,7 +133,7 @@ class PBLOrchestrator:
             workflow.add_edge("finalize", END)
 
         else:
-            # Custom workflow - all nodes available
+            # 自定义流程，所有节点可用
             workflow.set_entry_point("initialize")
             workflow.add_edge("initialize", "finalize")
             workflow.add_edge("finalize", END)

@@ -26,7 +26,7 @@ from app.core.exceptions import (
 )
 from app.core.cache import init_enhanced_redis, close_enhanced_redis
 from app.utils.logger import setup_logging
-from app.services.vector_service import init_enhanced_vector_store
+# 移除向量服务导入，专注核心功能
 
 
 @asynccontextmanager
@@ -41,9 +41,7 @@ async def lifespan(app: FastAPI):
         await init_enhanced_redis()
         logger.info("✅ 增强版Redis缓存系统初始化完成")
 
-        # 初始化增强版ChromaDB向量数据库
-        await init_enhanced_vector_store()
-        logger.info("✅ 增强版ChromaDB向量数据库初始化完成")
+        # 移除向量数据库初始化，专注核心功能
 
         logger.info("🎉 所有服务初始化完成，系统准备就绪")
 

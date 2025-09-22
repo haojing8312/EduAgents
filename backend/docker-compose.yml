@@ -20,8 +20,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
+      # 移除ChromaDB配置
       - SECRET_KEY=${SECRET_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -30,8 +29,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      chromadb:
-        condition: service_healthy
+      # 移除ChromaDB依赖
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
@@ -92,27 +90,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # ChromaDB向量数据库
-  chromadb:
-    image: chromadb/chroma:0.4.15
-    container_name: pbl_assistant_chromadb
-    ports:
-      - "8001:8000"
-    environment:
-      - CHROMA_SERVER_HOST=0.0.0.0
-      - CHROMA_SERVER_HTTP_PORT=8000
-      - PERSIST_DIRECTORY=/chroma/data
-      - ANONYMIZED_TELEMETRY=false
-    volumes:
-      - chroma_data:/chroma/data
-    networks:
-      - pbl_network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # 移除ChromaDB向量数据库，专注核心功能
 
   # Nginx反向代理
   nginx:
@@ -177,5 +155,4 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  chroma_data:
-    driver: local
+  # 移除chroma_data卷

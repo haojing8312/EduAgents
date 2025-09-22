@@ -93,17 +93,7 @@ class Settings(BaseSettings):
             f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_SESSION_DB}"
         )
 
-    # ChromaDB配置
-    CHROMA_HOST: str = Field(default="localhost", env="CHROMA_HOST")
-    CHROMA_PORT: int = Field(default=8000, env="CHROMA_PORT")
-    CHROMA_COLLECTION_NAME: str = Field(
-        default="pbl_knowledge", env="CHROMA_COLLECTION_NAME"
-    )
-
-    @property
-    def CHROMA_URL(self) -> str:
-        """ChromaDB连接URL"""
-        return f"http://{self.CHROMA_HOST}:{self.CHROMA_PORT}"
+    # 移除ChromaDB配置，专注核心功能
 
     # 大语言模型配置
     LLM_PROVIDER: str = Field(
@@ -115,9 +105,7 @@ class Settings(BaseSettings):
     OPENAI_API_BASE: Optional[str] = Field(default="https://api.openai.com/v1", env="OPENAI_API_BASE")
     OPENAI_MODEL: str = Field(default="gpt-4-turbo-preview", env="OPENAI_MODEL")
     OPENAI_MODEL_NAME: Optional[str] = Field(default=None, env="OPENAI_MODEL_NAME")  # 用于三方中转
-    OPENAI_EMBEDDING_MODEL: str = Field(
-        default="text-embedding-3-large", env="OPENAI_EMBEDDING_MODEL"
-    )
+    # 移除OPENAI_EMBEDDING_MODEL配置，专注核心功能
 
     # Anthropic配置
     ANTHROPIC_API_KEY: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
