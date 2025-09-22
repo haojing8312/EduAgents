@@ -52,16 +52,19 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 开发服务器
+### 服务管理
 ```bash
-# 🚀 推荐：使用简化启动脚本 (默认48284端口)
-uv run python scripts/start.py
+# 🚀 推荐：使用Shell脚本管理服务 (默认48284端口)
+./scripts/start.sh                   # 启动服务（后台运行）
+./scripts/stop.sh                    # 停止服务
+./scripts/restart.sh                 # 重启服务
+./scripts/status.sh                  # 检查服务状态
 
-# 或者直接使用uv run
+# 📄 查看服务日志
+tail -f server.log                   # 实时查看日志
+
+# 🛠️ 直接启动方式（前台运行，用于调试）
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 48284
-
-# 自定义端口
-uv run python scripts/start.py --port 8000
 
 # 传统方式（需要激活虚拟环境）
 uvicorn app.main:app --reload --host 0.0.0.0 --port 48284

@@ -72,7 +72,7 @@ agents/                           # 项目根目录
 # 1. 启动后端服务 (默认48284端口)
 cd backend
 uv sync                              # 安装依赖
-uv run python scripts/start.py      # 启动开发服务器
+./scripts/start.sh                   # 启动后端服务
 
 # 2. 启动前端应用 (默认48285端口)
 cd frontend
@@ -80,19 +80,29 @@ npm install                          # 安装依赖
 npm run dev                          # 启动开发服务器
 ```
 
-### 开发工作流
+### 后端服务管理
 ```bash
-# 后端开发 (使用uv - 推荐)
 cd backend
-uv sync                                        # 安装依赖
-uv run python scripts/start.py                # 启动开发服务器
+
+# 🚀 推荐：使用Shell脚本管理服务 (默认48284端口)
+./scripts/start.sh                   # 启动服务（后台运行）
+./scripts/stop.sh                    # 停止服务
+./scripts/restart.sh                 # 重启服务
+./scripts/status.sh                  # 检查服务状态
+
+# 📄 查看服务日志
+tail -f server.log                   # 实时查看日志
+
+# 🧪 测试和开发
 uv run python scripts/test_enhanced.py        # 运行完整测试套件
 uv run python scripts/test_enhanced.py --business  # 业务穿越测试
 
-# 直接启动方式（备选）
+# 🛠️ 直接启动方式（前台运行，用于调试）
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 48284
+```
 
-# 前端开发
+### 前端开发工作流
+```bash
 cd frontend
 npm install                          # 安装依赖
 npm run dev                          # 开发服务器 (48285端口)
@@ -181,13 +191,19 @@ cd frontend && npm run test
 ### 日志调试
 ```bash
 # 查看后端日志
-cd backend && python -m logging --level=DEBUG
+cd backend
+tail -f server.log                   # 实时查看服务日志
+./scripts/status.sh                  # 检查服务运行状态
 
 # 查看前端开发日志
 cd frontend && npm run dev
 
 # 数据库连接测试
 cd backend && python -c "from app.core.database import engine; print('DB连接成功')"
+
+# 服务健康检查
+curl http://localhost:48284/health   # 检查后端API健康状态
+curl http://localhost:48284/docs     # 访问API文档
 ```
 
 ---

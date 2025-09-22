@@ -81,7 +81,7 @@ open index.html  # 或直接用浏览器打开
 # 1. 启动后端服务 (默认48284端口)
 cd backend
 uv sync                              # 安装依赖
-uv run python scripts/start.py      # 启动开发服务器
+./scripts/start.sh                   # 启动后端服务
 
 # 2. 启动前端应用 (默认48285端口)
 cd frontend
@@ -89,15 +89,24 @@ npm install                          # 安装依赖
 npm run dev                          # 启动开发服务器
 ```
 
-### 🔧 开发工具
+### 🔧 后端服务管理
 ```bash
-# 后端测试
 cd backend
+
+# 服务管理命令
+./scripts/start.sh                   # 启动服务（后台运行）
+./scripts/stop.sh                    # 停止服务
+./scripts/restart.sh                 # 重启服务
+./scripts/status.sh                  # 检查服务状态
+
+# 查看服务日志
+tail -f server.log                   # 实时查看日志
+
+# 测试工具
 uv run python scripts/test_enhanced.py    # 运行完整测试套件
 uv run python scripts/test_enhanced.py --business  # 业务穿越测试
 
-# 后端直接启动（备选方式）
-cd backend
+# 直接启动方式（前台运行，用于调试）
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 48284
 ```
 
