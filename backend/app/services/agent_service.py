@@ -5,9 +5,18 @@ Provides high-level interface for PBL course design
 
 import asyncio
 import json
+import os
+import logging
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, List, Optional
 from uuid import uuid4
+from dotenv import load_dotenv
+
+# 配置日志
+logger = logging.getLogger(__name__)
+
+# 显式加载环境变量
+load_dotenv()
 
 from ..agents.core.llm_manager import LLMManager, ModelType
 from ..agents.core.orchestrator import OrchestratorMode, PBLOrchestrator
@@ -24,7 +33,10 @@ class AgentService:
         """Initialize the agent service"""
         self.orchestrators: Dict[str, PBLOrchestrator] = {}
         self.sessions: Dict[str, Dict[str, Any]] = {}
-        self.llm_manager = LLMManager()
+        # 后台任务存储
+        self.background_tasks: Dict[str, asyncio.Task] = {}
+        # 使用真实API，确保test_mode=False
+        self.llm_manager = LLMManager(test_mode=False)
 
     async def create_course_design_session(
         self,
@@ -83,16 +95,16 @@ class AgentService:
 
     async def start_course_design(
         self, session_id: str, stream: bool = False
-    ):
+    ) -> Dict[str, Any]:
         """
-        Start the course design process
+        Start the course design process as a background task
 
         Args:
             session_id: Session identifier
-            stream: Whether to stream results
+            stream: Whether to stream results (deprecated - always async now)
 
         Returns:
-            Course design results (streamed or complete)
+            Task status information
         """
 
         # Validate session
@@ -100,81 +112,149 @@ class AgentService:
             raise ValueError(f"Session {session_id} not found")
 
         session = self.sessions[session_id]
-        orchestrator = self.orchestrators[session_id]
+
+        # Check if task is already running
+        if session_id in self.background_tasks:
+            task = self.background_tasks[session_id]
+            if not task.done():
+                return {
+                    "session_id": session_id,
+                    "status": "already_running",
+                    "message": "课程设计任务已在运行中"
+                }
 
         # Update session status
         session["status"] = "running"
         session["started_at"] = datetime.utcnow()
+        session["progress"] = 0
+        session["current_phase"] = "initializing"
+        session["current_agent"] = None
+
+        logger.info(f"🚀 启动课程设计后台任务 - 会话ID: {session_id}")
+
+        # Create and start background task
+        task = asyncio.create_task(self._execute_course_design_background(session_id))
+        self.background_tasks[session_id] = task
+
+        return {
+            "session_id": session_id,
+            "status": "started",
+            "message": "课程设计任务已启动，请使用状态查询接口监控进度"
+        }
+
+    async def _execute_course_design_background(self, session_id: str) -> None:
+        """
+        Execute course design in background task
+
+        Args:
+            session_id: Session identifier
+        """
+        session = self.sessions[session_id]
+        orchestrator = self.orchestrators[session_id]
 
         try:
-            if stream:
-                # Stream results
-                async for update in orchestrator.design_course(
-                    session["requirements"], session["config"]
-                ):
-                    # Update session progress
-                    session["progress"] = update.get("progress", 0)
-                    session["current_phase"] = update.get("phase")
+            logger.info(f"🤖 [{session_id}] 开始多智能体协作课程设计")
 
-                    # Yield update to client
-                    yield {
-                        "session_id": session_id,
-                        "type": update.get("type"),
-                        "phase": update.get("phase"),
-                        "progress": update.get("progress"),
-                        "data": update.get("data"),
-                        "timestamp": datetime.utcnow().isoformat(),
-                    }
+            # Update status
+            session["current_phase"] = "agent_collaboration"
+            session["progress"] = 10
 
-                # Mark as completed
-                session["status"] = "completed"
-                session["completed_at"] = datetime.utcnow()
-                session["progress"] = 100
+            # Execute course design with detailed logging
+            result = await self._execute_with_progress_tracking(
+                orchestrator, session, session_id
+            )
 
-            else:
-                # Get complete result
-                result = await orchestrator.design_course(
-                    session["requirements"], session["config"]
-                )
+            # Update session with results
+            session["status"] = "completed"
+            session["completed_at"] = datetime.utcnow()
+            session["progress"] = 100
+            session["result"] = result
+            session["current_phase"] = "completed"
+            session["current_agent"] = None
 
-                # Update session
-                session["status"] = "completed"
-                session["completed_at"] = datetime.utcnow()
-                session["progress"] = 100
-                session["result"] = result
-
-                yield {
-                    "session_id": session_id,
-                    "status": "completed",
-                    "result": result,
-                    "metrics": orchestrator.get_metrics(),
-                }
+            logger.info(f"✅ [{session_id}] 课程设计完成")
 
         except Exception as e:
             # Handle errors
             session["status"] = "failed"
             session["error"] = str(e)
             session["failed_at"] = datetime.utcnow()
+            session["current_phase"] = "failed"
+            session["current_agent"] = None
 
-            if stream:
-                yield {
-                    "session_id": session_id,
-                    "type": "error",
-                    "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat(),
-                }
+            logger.error(f"❌ [{session_id}] 课程设计失败: {str(e)}", exc_info=True)
+
+        finally:
+            # Clean up background task reference
+            if session_id in self.background_tasks:
+                del self.background_tasks[session_id]
+
+    async def _execute_with_progress_tracking(
+        self, orchestrator: PBLOrchestrator, session: Dict[str, Any], session_id: str
+    ) -> Dict[str, Any]:
+        """
+        Execute orchestrator with progress tracking and detailed logging
+
+        Args:
+            orchestrator: PBL orchestrator instance
+            session: Session data
+            session_id: Session identifier
+
+        Returns:
+            Course design results
+        """
+        try:
+            # Check if orchestrator supports streaming
+            design_generator = orchestrator.design_course(
+                session["requirements"], session["config"]
+            )
+
+            # Handle both generator and direct result
+            if hasattr(design_generator, '__aiter__'):
+                # Stream mode - collect updates
+                result = None
+                async for update in design_generator:
+                    if isinstance(update, dict):
+                        # Update session progress from stream
+                        if "progress" in update:
+                            session["progress"] = update["progress"]
+                        if "phase" in update:
+                            session["current_phase"] = update["phase"]
+                        if "current_agent" in update:
+                            session["current_agent"] = update["current_agent"]
+
+                        # Log progress
+                        phase = update.get("phase", "unknown")
+                        progress = update.get("progress", 0)
+                        agent = update.get("current_agent", "unknown")
+
+                        logger.info(f"📊 [{session_id}] 进度更新: {phase} - {progress}% (当前智能体: {agent})")
+
+                        # Keep the latest result
+                        if "result" in update:
+                            result = update["result"]
+                        elif "data" in update:
+                            result = update["data"]
+
+                return result if result else {}
             else:
-                raise e
+                # Direct result mode
+                result = await design_generator
+                return result if result else {}
+
+        except Exception as e:
+            logger.error(f"❌ [{session_id}] 编排器执行失败: {str(e)}", exc_info=True)
+            raise
 
     async def get_session_status(self, session_id: str) -> Dict[str, Any]:
         """
-        Get the status of a course design session
+        Get the status of a course design session with enhanced details
 
         Args:
             session_id: Session identifier
 
         Returns:
-            Session status information
+            Session status information including current agent and estimated time
         """
 
         if session_id not in self.sessions:
@@ -182,22 +262,44 @@ class AgentService:
 
         session = self.sessions[session_id]
 
+        # Calculate estimated remaining time
+        estimated_remaining = None
+        if session["status"] == "running" and session.get("started_at"):
+            # Simple estimation based on progress
+            progress = session.get("progress", 0)
+            if progress > 0:
+                elapsed = (datetime.utcnow() - session["started_at"]).total_seconds()
+                estimated_total = elapsed * (100 / progress)
+                estimated_remaining = max(0, estimated_total - elapsed)
+
+        # Check if background task is still running
+        task_running = session_id in self.background_tasks and not self.background_tasks[session_id].done()
+
         return {
             "session_id": session_id,
             "status": session["status"],
-            "progress": session["progress"],
-            "current_phase": session["current_phase"],
+            "progress": session.get("progress", 0),
+            "current_phase": session.get("current_phase"),
+            "current_agent": session.get("current_agent"),
+            "task_running": task_running,
+            "estimated_remaining_seconds": estimated_remaining,
             "created_at": session["created_at"].isoformat(),
             "started_at": (
-                session.get("started_at", "").isoformat()
+                session.get("started_at").isoformat()
                 if session.get("started_at")
                 else None
             ),
             "completed_at": (
-                session.get("completed_at", "").isoformat()
+                session.get("completed_at").isoformat()
                 if session.get("completed_at")
                 else None
             ),
+            "failed_at": (
+                session.get("failed_at").isoformat()
+                if session.get("failed_at")
+                else None
+            ),
+            "error": session.get("error"),
         }
 
     async def get_session_result(self, session_id: str) -> Dict[str, Any]:

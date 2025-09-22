@@ -12,6 +12,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 import tiktoken
+import httpx
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
@@ -25,6 +26,7 @@ class ModelType(Enum):
     CLAUDE_35_HAIKU = "claude-3-5-haiku-20241022"
     GPT_4O = "gpt-4o"
     GPT_4O_MINI = "gpt-4o-mini"
+    DEEPSEEK_CHAT = "deepseek-chat"
 
 
 class ModelCapability(Enum):
@@ -94,12 +96,14 @@ class LLMManager:
         openai_base_url: Optional[str] = None,
         anthropic_model_name: Optional[str] = None,
         openai_model_name: Optional[str] = None,
-        default_model: ModelType = ModelType.CLAUDE_35_SONNET,
+        default_model: ModelType = ModelType.DEEPSEEK_CHAT,
         enable_fallback: bool = True,
         max_retries: int = 3,
         temperature: float = 0.7,
+        test_mode: bool = False,
     ):
         """Initialize the LLM Manager with API clients"""
+        self.test_mode = test_mode
         self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.anthropic_base_url = anthropic_base_url or os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
@@ -107,21 +111,30 @@ class LLMManager:
         self.anthropic_model_name = anthropic_model_name or os.getenv("ANTHROPIC_MODEL_NAME")
         self.openai_model_name = openai_model_name or os.getenv("OPENAI_MODEL_NAME")
 
-        # Initialize clients
-        self.anthropic_client = (
-            AsyncAnthropic(
-                api_key=self.anthropic_api_key,
-                base_url=self.anthropic_base_url
+        # Initialize clients (skip if in test mode)
+        if self.test_mode:
+            self.anthropic_client = None
+            self.openai_client = None
+        else:
+            # 配置代理设置
+            proxy_config = self._get_proxy_config()
+
+            self.anthropic_client = (
+                AsyncAnthropic(
+                    api_key=self.anthropic_api_key,
+                    base_url=self.anthropic_base_url,
+                    http_client=httpx.AsyncClient(proxy=proxy_config) if proxy_config else None
+                )
+                if self.anthropic_api_key
+                else None
             )
-            if self.anthropic_api_key
-            else None
-        )
-        self.openai_client = (
-            AsyncOpenAI(
-                api_key=self.openai_api_key,
-                base_url=self.openai_base_url
-            ) if self.openai_api_key else None
-        )
+            self.openai_client = (
+                AsyncOpenAI(
+                    api_key=self.openai_api_key,
+                    base_url=self.openai_base_url,
+                    http_client=httpx.AsyncClient(proxy=proxy_config) if proxy_config else None
+                ) if self.openai_api_key else None
+            )
 
         self.default_model = default_model
         self.enable_fallback = enable_fallback
@@ -143,6 +156,13 @@ class LLMManager:
         # Cache integration
         self.enable_caching = True
         self._llm_cache = None
+
+    def _get_proxy_config(self) -> Optional[str]:
+        """获取代理配置"""
+        # 优先使用HTTPS代理，然后HTTP代理
+        proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy") or \
+                os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
+        return proxy
 
     def select_model_for_task(
         self, required_capabilities: List[ModelCapability], prefer_speed: bool = False
@@ -310,6 +330,20 @@ class LLMManager:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        # Handle test mode
+        if self.test_mode:
+            if stream:
+                return self._generate_mock_stream(prompt, system_prompt, model.value)
+            else:
+                response_content = await self._generate_mock_response(prompt, system_prompt, model.value)
+                return LLMResponse(
+                    content=response_content,
+                    model_used=f"mock-{model.value}",
+                    tokens_used=100,  # Mock token count
+                    latency_ms=500.0,  # Mock latency
+                    metadata={"test_mode": True}
+                )
+
         # Check cache first (only for non-streaming requests)
         if not stream and self.enable_caching:
             # Initialize cache if needed
@@ -474,6 +508,11 @@ Ensure your response is valid JSON that matches the schema exactly.
             required_capabilities=[ModelCapability.ANALYSIS],
         )
 
+        # Debug: check if we're in test mode and what we got
+        print(f"🔍 generate_structured got response: {type(response)} - content type: {type(response.content)}")
+        if self.test_mode:
+            print(f"🔍 test mode response content: {response.content[:200]}...")
+
         # Parse JSON response
         try:
             # Extract JSON from response
@@ -540,3 +579,321 @@ No markdown, no explanations, just the JSON object.
                 cost += (tokens / 1_000_000) * pricing[model]
 
         return round(cost, 4)
+
+    # Mock methods for testing
+    async def _generate_mock_response(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        model: str = "mock-model"
+    ) -> str:
+        """Generate a realistic mock response based on the prompt content"""
+
+        # Simulate processing time
+        await asyncio.sleep(0.5)
+
+        # Generate contextual responses based on prompt keywords
+        prompt_lower = prompt.lower()
+        system_lower = (system_prompt or "").lower()
+
+        # Debug: show what we're matching against
+        print(f"🔍 Mock matching - prompt keywords: {prompt_lower[:100]}...")
+        print(f"🔍 Mock matching - system keywords: {system_lower[:100]}...")
+
+        # Check for Course Architect first (higher priority)
+        if "course structure" in prompt_lower or "course architect" in system_lower or "course architecture" in system_lower:
+            print("🔍 Matched: Course Architect")
+            return json.dumps({
+                "modules": [
+                    {
+                        "id": "1",
+                        "title": "Introduction to AI Ethics",
+                        "duration": "1 week",
+                        "objectives": [
+                            "Understand fundamental AI ethics principles",
+                            "Identify key ethical challenges in AI development"
+                        ],
+                        "key_concepts": ["AI ethics", "moral reasoning", "technological impact"],
+                        "activities": ["Ethics case study analysis", "Group discussions", "Reflection essays"],
+                        "deliverables": ["Ethics framework document", "Case study presentation"],
+                        "prerequisites": ["Basic understanding of AI technology"],
+                        "resources": ["Ethics readings", "Case study materials", "Discussion forums"]
+                    },
+                    {
+                        "id": "2",
+                        "title": "Bias and Fairness in AI",
+                        "duration": "1 week",
+                        "objectives": [
+                            "Analyze bias in AI systems",
+                            "Evaluate fairness metrics and approaches"
+                        ],
+                        "key_concepts": ["Algorithmic bias", "fairness metrics", "data representation"],
+                        "activities": ["Bias detection workshop", "Fairness algorithm design", "Real-world case analysis"],
+                        "deliverables": ["Bias audit report", "Fairness improvement proposal"],
+                        "prerequisites": ["Understanding of AI ethics basics"],
+                        "resources": ["Bias detection tools", "Fairness research papers", "Algorithm examples"]
+                    }
+                ],
+                "project_phases": [
+                    {
+                        "phase": "Research and Analysis",
+                        "description": "Students research AI ethics challenges and analyze real-world cases",
+                        "duration": "2 weeks",
+                        "milestones": ["Research complete", "Case analysis finished"],
+                        "success_criteria": ["Comprehensive research documentation", "Clear case analysis"]
+                    },
+                    {
+                        "phase": "Solution Development",
+                        "description": "Students develop ethical frameworks and solutions",
+                        "duration": "2 weeks",
+                        "milestones": ["Framework draft", "Solution prototype"],
+                        "success_criteria": ["Well-structured ethical framework", "Practical solution proposal"]
+                    }
+                ],
+                "assessment_points": [
+                    {
+                        "type": "Formative",
+                        "timing": "Weekly",
+                        "focus": "Understanding and progress",
+                        "weight": 40
+                    },
+                    {
+                        "type": "Summative",
+                        "timing": "End of course",
+                        "focus": "Final project and framework",
+                        "weight": 60
+                    }
+                ],
+                "learning_pathways": {
+                    "standard": {"description": "Regular pace with guided support", "pace": "4 weeks"},
+                    "accelerated": {"description": "Fast-track for advanced students", "pace": "3 weeks"},
+                    "supported": {"description": "Additional scaffolding for struggling students", "pace": "5 weeks"}
+                },
+                "resource_plan": {
+                    "materials": ["Ethics textbook", "Case study collection", "Research articles"],
+                    "tools": ["Discussion platform", "Collaboration tools", "Presentation software"],
+                    "spaces": ["Classroom", "Computer lab", "Online forum"],
+                    "external_resources": ["Ethics experts", "Industry case studies", "Online databases"]
+                }
+            })
+        elif "theoretical framework" in prompt_lower or "educational theorist" in system_lower:
+            print("🔍 Matched: Education Theorist")
+            return json.dumps({
+                "learning_theories": [
+                    {
+                        "id": "1",
+                        "title": "Introduction to AI Ethics",
+                        "duration": "1 week",
+                        "objectives": [
+                            "Understand fundamental AI ethics principles",
+                            "Identify key ethical challenges in AI development"
+                        ],
+                        "key_concepts": ["AI ethics", "moral reasoning", "technological impact"],
+                        "activities": ["Ethics case study analysis", "Group discussions", "Reflection essays"],
+                        "deliverables": ["Ethics framework document", "Case study presentation"],
+                        "prerequisites": ["Basic understanding of AI technology"],
+                        "resources": ["Ethics readings", "Case study materials", "Discussion forums"]
+                    },
+                    {
+                        "id": "2",
+                        "title": "Bias and Fairness in AI",
+                        "duration": "1 week",
+                        "objectives": [
+                            "Analyze bias in AI systems",
+                            "Evaluate fairness metrics and approaches"
+                        ],
+                        "key_concepts": ["Algorithmic bias", "fairness metrics", "data representation"],
+                        "activities": ["Bias detection workshop", "Fairness algorithm design", "Real-world case analysis"],
+                        "deliverables": ["Bias audit report", "Fairness improvement proposal"],
+                        "prerequisites": ["Understanding of AI ethics basics"],
+                        "resources": ["Bias detection tools", "Fairness research papers", "Algorithm examples"]
+                    }
+                ],
+                "project_phases": [
+                    {
+                        "phase": "Research and Analysis",
+                        "description": "Students research AI ethics challenges and analyze real-world cases",
+                        "duration": "2 weeks",
+                        "milestones": ["Research complete", "Case analysis finished"],
+                        "success_criteria": ["Comprehensive research documentation", "Clear case analysis"]
+                    },
+                    {
+                        "phase": "Solution Development",
+                        "description": "Students develop ethical frameworks and solutions",
+                        "duration": "2 weeks",
+                        "milestones": ["Framework draft", "Solution prototype"],
+                        "success_criteria": ["Well-structured ethical framework", "Practical solution proposal"]
+                    }
+                ],
+                "assessment_points": [
+                    {
+                        "type": "Formative",
+                        "timing": "Weekly",
+                        "focus": "Understanding and progress",
+                        "weight": 40
+                    },
+                    {
+                        "type": "Summative",
+                        "timing": "End of course",
+                        "focus": "Final project and framework",
+                        "weight": 60
+                    }
+                ],
+                "learning_pathways": {
+                    "standard": {"description": "Regular pace with guided support", "pace": "4 weeks"},
+                    "accelerated": {"description": "Fast-track for advanced students", "pace": "3 weeks"},
+                    "supported": {"description": "Additional scaffolding for struggling students", "pace": "5 weeks"}
+                },
+                "resource_plan": {
+                    "materials": ["Ethics textbook", "Case study collection", "Research articles"],
+                    "tools": ["Discussion platform", "Collaboration tools", "Presentation software"],
+                    "spaces": ["Classroom", "Computer lab", "Online forum"],
+                    "external_resources": ["Ethics experts", "Industry case studies", "Online databases"]
+                }
+            })
+        elif "content design" in prompt_lower or "material" in prompt_lower or "worksheets" in prompt_lower or "templates" in prompt_lower or "digital" in prompt_lower:
+            print("🔍 Matched: Material Creator")
+            return json.dumps({
+                "worksheets": [
+                    {
+                        "title": "AI Ethics Case Study Analysis Worksheet",
+                        "type": "worksheet",
+                        "format": "PDF",
+                        "description": "Structured worksheet for analyzing AI ethics case studies",
+                        "sections": [
+                            {"title": "Case Overview", "type": "text_input"},
+                            {"title": "Stakeholder Analysis", "type": "table"},
+                            {"title": "Ethical Issues Identification", "type": "checklist"},
+                            {"title": "Solution Proposal", "type": "long_text"}
+                        ],
+                        "instructions": "Students will use this worksheet to systematically analyze AI ethics cases"
+                    },
+                    {
+                        "title": "Bias Detection Lab Guide",
+                        "type": "lab_guide",
+                        "format": "PDF",
+                        "description": "Step-by-step guide for conducting bias detection experiments",
+                        "sections": [
+                            {"title": "Pre-lab Setup", "type": "checklist"},
+                            {"title": "Experiment Steps", "type": "numbered_list"},
+                            {"title": "Data Collection", "type": "table"},
+                            {"title": "Analysis Questions", "type": "questions"}
+                        ],
+                        "instructions": "Follow these steps to conduct bias detection analysis"
+                    }
+                ],
+                "templates": [
+                    {
+                        "name": "Project Proposal Template",
+                        "type": "document_template",
+                        "format": "DOCX",
+                        "sections": ["Executive Summary", "Problem Statement", "Methodology", "Timeline"]
+                    },
+                    {
+                        "name": "Presentation Template",
+                        "type": "presentation_template",
+                        "format": "PPTX",
+                        "slides": ["Title", "Problem", "Research", "Solution", "Conclusion"]
+                    }
+                ],
+                "teacher_guide": {
+                    "title": "AI Ethics PBL Course - Teacher Implementation Guide",
+                    "format": "PDF",
+                    "sections": [
+                        {
+                            "title": "Course Overview",
+                            "content": "Comprehensive overview of AI ethics education goals and objectives"
+                        },
+                        {
+                            "title": "Implementation Strategy",
+                            "content": "Step-by-step guide for implementing PBL methodology"
+                        },
+                        {
+                            "title": "Lesson Plans",
+                            "content": "Detailed lesson plans for each module with timing and activities"
+                        },
+                        {
+                            "title": "Assessment Guidelines",
+                            "content": "How to evaluate student progress and project outcomes"
+                        },
+                        {
+                            "title": "Troubleshooting",
+                            "content": "Common challenges and solutions for teachers"
+                        }
+                    ],
+                    "duration": "Complete course implementation guide"
+                },
+                "digital_resources": [
+                    {
+                        "title": "Interactive AI Ethics Simulator",
+                        "type": "web_application",
+                        "description": "Students can simulate ethical decisions in AI scenarios",
+                        "url": "https://ai-ethics-simulator.example.com",
+                        "requirements": "Web browser, internet connection"
+                    },
+                    {
+                        "title": "Bias Detection Toolkit",
+                        "type": "software_tool",
+                        "description": "Tool for detecting bias in datasets and algorithms",
+                        "platform": "Python/Jupyter",
+                        "installation": "pip install bias-detector"
+                    },
+                    {
+                        "title": "Virtual Reality Ethics Lab",
+                        "type": "vr_experience",
+                        "description": "Immersive experiences for exploring AI ethics scenarios",
+                        "platform": "VR headsets",
+                        "duration": "30-45 minutes per scenario"
+                    }
+                ],
+                "resources": [
+                    {"type": "Reading", "title": "AI Ethics Principles", "source": "IEEE Standards"},
+                    {"type": "Video", "title": "The Age of AI Documentary", "duration": "45 minutes"},
+                    {"type": "Interactive", "title": "AI Bias Detection Tool", "platform": "Web-based"}
+                ]
+            })
+        elif "assessment" in prompt_lower:
+            return json.dumps({
+                "assessment_framework": {
+                    "philosophy": "Authentic assessment aligned with real-world application",
+                    "formative_methods": ["Peer feedback", "Self-reflection", "Progress check-ins"],
+                    "summative_methods": ["Project portfolio", "Presentation", "Written analysis"],
+                    "rubric_criteria": ["Understanding", "Application", "Critical thinking", "Communication"]
+                }
+            })
+        else:
+            # General response - ensure it's valid JSON
+            print("🔍 Matched: General/Fallback")
+            return json.dumps({
+                "general_response": {
+                    "approach": "comprehensive",
+                    "recommendations": [
+                        "Clear Learning Objectives: Well-defined, measurable outcomes that align with student needs",
+                        "Engaging Activities: Interactive, hands-on experiences that promote active learning",
+                        "Authentic Assessment: Real-world applications that demonstrate student understanding",
+                        "Collaborative Elements: Opportunities for peer interaction and shared learning",
+                        "Technology Integration: Appropriate use of digital tools to enhance learning"
+                    ],
+                    "outcome": "Students develop both content knowledge and essential 21st-century skills while maintaining engagement and motivation throughout the learning process"
+                },
+                "status": "success",
+                "type": "general_educational_recommendation"
+            })
+
+    async def _generate_mock_stream(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        model: str = "mock-model"
+    ) -> AsyncGenerator[str, None]:
+        """Generate a mock streaming response"""
+        response_text = await self._generate_mock_response(prompt, system_prompt, model)
+
+        # Split response into chunks and yield with delays
+        words = response_text.split()
+        chunk_size = 10
+
+        for i in range(0, len(words), chunk_size):
+            chunk = " ".join(words[i:i + chunk_size])
+            await asyncio.sleep(0.1)  # Simulate streaming delay
+            yield chunk + " "

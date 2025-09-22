@@ -74,6 +74,51 @@ class BusinessFlowTester:
         status = "✅" if success else "❌"
         logger.info(f"{status} {test_name}")
 
+    def _validate_course_design_result(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
+        """验证课程设计结果的质量"""
+        quality_check = {
+            "has_overview": bool(result_data.get("course_overview")),
+            "has_content": bool(result_data.get("content")),
+            "has_assessment": bool(result_data.get("assessment")),
+            "has_materials": bool(result_data.get("materials")),
+            "overall_quality": "poor"
+        }
+
+        # 检查课程概览质量
+        overview = result_data.get("course_overview", {})
+        if overview:
+            quality_check["overview_details"] = {
+                "has_requirements": bool(overview.get("requirements")),
+                "has_theoretical_foundation": bool(overview.get("theoretical_foundation")),
+                "has_architecture": bool(overview.get("architecture"))
+            }
+
+        # 检查内容质量
+        content = result_data.get("content", {})
+        if content:
+            modules = content.get("modules", [])
+            quality_check["content_details"] = {
+                "module_count": len(modules),
+                "has_modules": len(modules) > 0
+            }
+
+        # 综合质量评估
+        quality_score = sum([
+            quality_check["has_overview"],
+            quality_check["has_content"],
+            quality_check["has_assessment"],
+            quality_check["has_materials"]
+        ])
+
+        if quality_score >= 4:
+            quality_check["overall_quality"] = "excellent"
+        elif quality_score >= 3:
+            quality_check["overall_quality"] = "good"
+        elif quality_score >= 2:
+            quality_check["overall_quality"] = "fair"
+
+        return quality_check
+
     async def test_root_endpoint(self) -> bool:
         """测试根端点"""
         try:
@@ -168,7 +213,7 @@ class BusinessFlowTester:
             session_id = session_data["session_id"]
             self.session_data["session_id"] = session_id
 
-            # 2. 启动设计流程（非流式）
+            # 2. 启动设计流程（异步模式）
             response = await self.client.post(
                 f"{self.base_url}/api/v1/agents/sessions/{session_id}/start",
                 headers={"Authorization": "Bearer mock_token"}
@@ -189,18 +234,55 @@ class BusinessFlowTester:
                 logger.error(f"启动设计流程失败 - 状态码: {response.status_code}, 详细错误: {response.text}")
                 return False
 
-            # 3. 获取会话状态
-            await asyncio.sleep(2)  # 等待处理
-            response = await self.client.get(
-                f"{self.base_url}/api/v1/agents/sessions/{session_id}/status",
-                headers={"Authorization": "Bearer mock_token"}
-            )
+            logger.info(f"✅ 设计任务已启动，开始轮询状态...")
 
-            if response.status_code != 200:
-                self.log_test_result("查询会话状态", False, {"status_code": response.status_code})
+            # 3. 轮询会话状态直到完成（最多等待30分钟）
+            max_polls = 180  # 30分钟，每10秒轮询一次
+            poll_interval = 10  # 10秒间隔
+            status_data = None
+
+            for poll_count in range(max_polls):
+                response = await self.client.get(
+                    f"{self.base_url}/api/v1/agents/sessions/{session_id}/status",
+                    headers={"Authorization": "Bearer mock_token"}
+                )
+
+                if response.status_code != 200:
+                    self.log_test_result("查询会话状态", False, {"status_code": response.status_code})
+                    return False
+
+                status_data = response.json()["data"]
+                status = status_data.get("status", "unknown")
+                progress = status_data.get("progress", 0)
+                current_agent = status_data.get("current_agent", "unknown")
+                current_phase = status_data.get("current_phase", "unknown")
+                estimated_remaining = status_data.get("estimated_remaining_seconds")
+
+                logger.info(f"📊 轮询 {poll_count+1}/{max_polls}: 状态={status}, 进度={progress}%, 当前智能体={current_agent}, 阶段={current_phase}")
+
+                if estimated_remaining:
+                    logger.info(f"⏱️ 预计剩余时间: {estimated_remaining:.0f}秒")
+
+                # 检查是否完成
+                if status == "completed":
+                    logger.info(f"🎉 设计任务完成！总轮询次数: {poll_count+1}")
+                    break
+                elif status == "failed":
+                    error_msg = status_data.get("error", "未知错误")
+                    logger.error(f"❌ 设计任务失败: {error_msg}")
+                    self.log_test_result("课程设计会话流程", False, {"error": error_msg})
+                    return False
+                elif status not in ["running", "created"]:
+                    logger.warning(f"⚠️ 未知状态: {status}")
+
+                # 如果还在运行，等待下一次轮询
+                if poll_count < max_polls - 1:
+                    await asyncio.sleep(poll_interval)
+            else:
+                # 超时了
+                logger.error(f"❌ 设计任务超时，已轮询 {max_polls} 次")
+                self.log_test_result("课程设计会话流程", False, {"error": "任务超时"})
                 return False
-
-            status_data = response.json()["data"]
 
             # 4. 获取设计结果
             response = await self.client.get(
@@ -215,10 +297,16 @@ class BusinessFlowTester:
             result_data = response.json()["data"]
             self.session_data["design_result"] = result_data
 
+            # 验证结果质量
+            result_quality_check = self._validate_course_design_result(result_data)
+
             self.log_test_result("课程设计会话流程", True, {
                 "session_id": session_id,
                 "status": status_data.get("status"),
-                "has_result": bool(result_data)
+                "final_progress": status_data.get("progress"),
+                "has_result": bool(result_data),
+                "result_quality": result_quality_check,
+                "total_polls": poll_count + 1
             })
             return True
 

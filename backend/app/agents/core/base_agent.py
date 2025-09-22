@@ -5,6 +5,7 @@ Implements core agent behaviors and communication protocols
 
 import asyncio
 import json
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
@@ -12,6 +13,9 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from .llm_manager import LLMManager, ModelCapability, ModelType
 from .state import AgentMessage, AgentRole, AgentState, MessageType
+
+# 配置智能体专用日志
+logger = logging.getLogger(__name__)
 
 
 class AgentStatus(Enum):
@@ -89,22 +93,74 @@ class BaseAgent(ABC):
         Main execution method for the agent
         Processes messages, executes tasks, and updates state
         """
+        start_time = datetime.utcnow()
+        logger.info(f"🤖 [{self.name}] 开始执行任务")
+
         self.status = AgentStatus.PROCESSING
         state.update_agent_status(self.role, self.status.value)
 
         try:
             # Process incoming messages
             messages = state.get_messages_for_agent(self.role)
+            logger.info(f"📬 [{self.name}] 处理 {len(messages)} 条消息")
 
-            for message in messages:
+            for i, message in enumerate(messages):
+                logger.info(f"📝 [{self.name}] 处理消息 {i+1}/{len(messages)}: {message.message_type.value}")
+
                 if message.message_type == MessageType.REQUEST:
-                    # Process task request
-                    result = await self.process_task(message.content, state, stream)
+                    # Log task details
+                    task_content = message.content
+                    task_preview = str(task_content)[:200] + "..." if len(str(task_content)) > 200 else str(task_content)
+                    logger.info(f"🎯 [{self.name}] 任务内容: {task_preview}")
 
-                    if stream:
-                        async for chunk in result:
-                            yield chunk
+                    # Process task request - handle both async generator and dict returns
+                    logger.info(f"⚡ [{self.name}] 调用任务处理方法...")
+                    task_start = datetime.utcnow()
+
+                    task_result = self.process_task(message.content, state, stream)
+
+                    # Check if it's an async generator or coroutine
+                    import inspect
+                    if inspect.isasyncgen(task_result):
+                        logger.info(f"🔄 [{self.name}] 处理异步生成器结果...")
+                        # It's an async generator
+                        if stream:
+                            chunk_count = 0
+                            async for chunk in task_result:
+                                chunk_count += 1
+                                logger.debug(f"📦 [{self.name}] 生成块 {chunk_count}")
+                                yield chunk
+                        else:
+                            # Collect all results from async generator
+                            result = None
+                            chunk_count = 0
+                            async for chunk in task_result:
+                                chunk_count += 1
+                                result = chunk  # Take the last result
+
+                            task_duration = (datetime.utcnow() - task_start).total_seconds()
+                            logger.info(f"✅ [{self.name}] 任务完成，耗时 {task_duration:.2f}秒，生成 {chunk_count} 个块")
+
+                            # Send response
+                            response = AgentMessage(
+                                sender=self.role,
+                                recipient=message.sender,
+                                message_type=MessageType.RESPONSE,
+                                content=result,
+                                parent_message_id=message.id,
+                            )
+                            state.add_message(response)
+                            yield result
                     else:
+                        logger.info(f"⏳ [{self.name}] 等待协程完成...")
+                        # It's a coroutine, await it
+                        result = await task_result
+
+                        task_duration = (datetime.utcnow() - task_start).total_seconds()
+                        result_preview = str(result)[:200] + "..." if len(str(result)) > 200 else str(result)
+                        logger.info(f"✅ [{self.name}] 任务完成，耗时 {task_duration:.2f}秒")
+                        logger.info(f"📋 [{self.name}] 结果预览: {result_preview}")
+
                         # Send response
                         response = AgentMessage(
                             sender=self.role,
@@ -117,9 +173,11 @@ class BaseAgent(ABC):
                         yield result
 
                 elif message.message_type == MessageType.COLLABORATION:
+                    logger.info(f"🤝 [{self.name}] 处理协作请求...")
                     # Handle collaboration request
                     response = await self.collaborate(message, state)
                     state.add_message(response)
+                    logger.info(f"✅ [{self.name}] 协作响应已发送")
 
             # Clear processed messages
             state.clear_message_queue(self.role)
@@ -127,10 +185,16 @@ class BaseAgent(ABC):
             self.status = AgentStatus.COMPLETED
             state.update_agent_status(self.role, self.status.value)
 
+            total_duration = (datetime.utcnow() - start_time).total_seconds()
+            logger.info(f"🎉 [{self.name}] 执行完成，总耗时 {total_duration:.2f}秒")
+
         except Exception as e:
             self.status = AgentStatus.ERROR
             state.update_agent_status(self.role, self.status.value)
             state.log_error(e, self.role, {"task": self.current_task})
+
+            error_duration = (datetime.utcnow() - start_time).total_seconds()
+            logger.error(f"❌ [{self.name}] 执行失败，耗时 {error_duration:.2f}秒: {str(e)}", exc_info=True)
 
             # Send error message
             error_message = AgentMessage(
@@ -154,20 +218,47 @@ class BaseAgent(ABC):
         stream: bool = False,
         temperature: float = 0.7,
     ) -> AsyncGenerator[str, None] | str:
-        """Generate response using LLM"""
-        response = await self.llm_manager.generate(
-            prompt=prompt,
-            system_prompt=system_prompt or self._system_prompts.get("default"),
-            model=self.preferred_model,
-            temperature=temperature,
-            required_capabilities=self.capabilities,
-            stream=stream,
-        )
+        """Generate response using LLM with detailed logging"""
 
-        if stream:
-            return response
-        else:
-            return response.content
+        # Log prompt details
+        prompt_preview = prompt[:300] + "..." if len(prompt) > 300 else prompt
+        system_preview = (system_prompt or self._system_prompts.get("default", ""))[:200] + "..." if system_prompt and len(system_prompt) > 200 else system_prompt
+
+        logger.info(f"🧠 [{self.name}] 准备调用AI模型")
+        logger.info(f"📝 [{self.name}] Prompt预览: {prompt_preview}")
+        logger.info(f"⚙️ [{self.name}] 系统提示: {system_preview}")
+        logger.info(f"🌡️ [{self.name}] 温度参数: {temperature}")
+        logger.info(f"🎯 [{self.name}] 模型: {self.preferred_model}")
+
+        start_time = datetime.utcnow()
+
+        try:
+            response = await self.llm_manager.generate(
+                prompt=prompt,
+                system_prompt=system_prompt or self._system_prompts.get("default"),
+                model=self.preferred_model,
+                temperature=temperature,
+                required_capabilities=self.capabilities,
+                stream=stream,
+            )
+
+            if stream:
+                logger.info(f"🔄 [{self.name}] 开始流式响应")
+                return response
+            else:
+                api_duration = (datetime.utcnow() - start_time).total_seconds()
+                response_preview = response.content[:300] + "..." if len(response.content) > 300 else response.content
+
+                logger.info(f"✅ [{self.name}] AI响应完成，耗时 {api_duration:.2f}秒")
+                logger.info(f"📖 [{self.name}] 响应内容预览: {response_preview}")
+                logger.info(f"📊 [{self.name}] 响应长度: {len(response.content)} 字符")
+
+                return response.content
+
+        except Exception as e:
+            api_duration = (datetime.utcnow() - start_time).total_seconds()
+            logger.error(f"❌ [{self.name}] AI调用失败，耗时 {api_duration:.2f}秒: {str(e)}", exc_info=True)
+            raise
 
     async def _generate_structured_response(
         self,

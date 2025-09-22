@@ -173,16 +173,12 @@ async def start_design_process(
     """
     try:
         if stream:
-            # Return streaming response
-            async def generate():
-                async for update in agent_service.start_course_design(
-                    session_id, stream=True
-                ):
-                    yield f"data: {json.dumps(update)}\n\n"
-                yield "data: [DONE]\n\n"
+            # Streaming is temporarily disabled in async task mode
+            # Start task and return instructions for polling
+            result = await agent_service.start_course_design(session_id, stream=False)
 
             return StreamingResponse(
-                generate(),
+                iter([f"data: {json.dumps(result)}\n\ndata: [DONE]\n\n"]),
                 media_type="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
@@ -191,10 +187,8 @@ async def start_design_process(
                 },
             )
         else:
-            # Return complete result - collect from async generator
-            result = None
-            async for response in agent_service.start_course_design(session_id, stream=False):
-                result = response  # Get the final result
+            # Return task start confirmation (new async mode)
+            result = await agent_service.start_course_design(session_id, stream=False)
 
             if result:
                 return {
@@ -865,11 +859,16 @@ async def websocket_endpoint(websocket, session_id: str):
     """
     await websocket.accept()
     try:
-        # Start design process with streaming
-        async for update in agent_service.start_course_design(session_id, stream=True):
-            await websocket.send_json(update)
+        # Start design process and inform client to poll status
+        result = await agent_service.start_course_design(session_id, stream=False)
+        await websocket.send_json(result)
 
-        await websocket.send_json({"type": "complete", "message": "Design completed"})
+        # Send polling instructions
+        await websocket.send_json({
+            "type": "polling_required",
+            "message": "任务已启动，请使用状态查询接口监控进度",
+            "session_id": session_id
+        })
 
     except Exception as e:
         await websocket.send_json({"type": "error", "message": str(e)})
