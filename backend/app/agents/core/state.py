@@ -83,8 +83,8 @@ class AgentState:
     learning_materials: List[Dict[str, Any]] = field(default_factory=list)
 
     # Agent Collaboration State
-    active_agents: Set[AgentRole] = field(default_factory=set)
-    agent_statuses: Dict[AgentRole, str] = field(default_factory=dict)
+    active_agents: Set[str] = field(default_factory=set)  # Changed to Set[str] for JSON compatibility
+    agent_statuses: Dict[str, str] = field(default_factory=dict)  # Changed to Dict[str, str] for JSON compatibility
     message_queue: List[AgentMessage] = field(default_factory=list)
     message_history: List[AgentMessage] = field(default_factory=list)
 
@@ -133,22 +133,26 @@ class AgentState:
 
     def get_messages_for_agent(self, agent_role: AgentRole) -> List[AgentMessage]:
         """Get all pending messages for a specific agent"""
+        agent_role_str = agent_role.value if isinstance(agent_role, AgentRole) else agent_role
         return [
             msg
             for msg in self.message_queue
-            if msg.recipient == agent_role or msg.recipient is None
+            if (msg.recipient and msg.recipient.value == agent_role_str) or msg.recipient is None
         ]
 
     def clear_message_queue(self, agent_role: AgentRole) -> None:
         """Clear processed messages for an agent"""
+        agent_role_str = agent_role.value if isinstance(agent_role, AgentRole) else agent_role
         self.message_queue = [
-            msg for msg in self.message_queue if msg.recipient != agent_role
+            msg for msg in self.message_queue
+            if not msg.recipient or msg.recipient.value != agent_role_str
         ]
 
     def update_agent_status(self, agent_role: AgentRole, status: str) -> None:
         """Update the status of an agent"""
-        self.agent_statuses[agent_role] = status
-        self.active_agents.add(agent_role)
+        agent_role_str = agent_role.value if isinstance(agent_role, AgentRole) else agent_role
+        self.agent_statuses[agent_role_str] = status
+        self.active_agents.add(agent_role_str)
         self.last_update = datetime.utcnow()
 
     def add_quality_score(self, metric: str, score: float) -> None:
@@ -160,7 +164,7 @@ class AgentState:
         """Create a recovery checkpoint of the current state"""
         checkpoint = {
             "timestamp": datetime.utcnow(),
-            "phase": self.current_phase,
+            "phase": self.current_phase.value,  # Serialize enum to string
             "course_state": {
                 "requirements": self.course_requirements,
                 "framework": self.theoretical_framework,
@@ -179,10 +183,11 @@ class AgentState:
         self, error: Exception, agent_role: AgentRole, context: Dict[str, Any]
     ) -> None:
         """Log errors for debugging and recovery"""
+        agent_role_str = agent_role.value if isinstance(agent_role, AgentRole) else agent_role
         self.error_log.append(
             {
                 "timestamp": datetime.utcnow(),
-                "agent": agent_role,
+                "agent": agent_role_str,  # Serialize enum to string
                 "error": str(error),
                 "context": context,
             }

@@ -6,6 +6,7 @@ Enhanced with comprehensive collaboration tracking
 
 import asyncio
 import json
+import traceback
 from datetime import datetime
 from enum import Enum
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
@@ -22,6 +23,7 @@ from ..specialists import (
 )
 from .llm_manager import LLMManager, ModelType
 from .state import AgentMessage, AgentRole, AgentState, MessageType, WorkflowPhase
+from .task_tracker import TaskExecutionTracker
 from ...core.collaboration_tracker import CollaborationTracker
 from ...core.ai_call_logger import AICallLogger
 
@@ -64,6 +66,9 @@ class PBLOrchestrator:
         # Initialize collaboration tracking
         self.collaboration_tracker: Optional[CollaborationTracker] = None
         self.ai_call_logger = AICallLogger()
+
+        # Initialize task execution tracker
+        self.task_tracker: Optional[TaskExecutionTracker] = None
 
         # Initialize specialized agents
         self.agents = {
@@ -159,6 +164,14 @@ class PBLOrchestrator:
 
         state.transition_phase(WorkflowPhase.INITIALIZATION)
 
+        # Start execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.start_execution_phase(
+                phase_name="initialization",
+                phase_description="初始化课程设计流程",
+                input_data=state.course_requirements
+            )
+
         # Initialize collaboration tracking
         if self.enable_collaboration_tracking and not self.collaboration_tracker:
             self.collaboration_tracker = CollaborationTracker(state.session_id)
@@ -211,12 +224,35 @@ class PBLOrchestrator:
                 }
             )
 
+        # Complete execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.complete_execution_phase(
+                phase_name="initialization",
+                success=True,
+                output_data={
+                    "initialized_requirements": state.course_requirements,
+                    "orchestrator_mode": self.mode.value,
+                    "agent_statuses": state.agent_statuses
+                }
+            )
+
         return state
 
     async def _theoretical_foundation_phase(self, state: AgentState) -> AgentState:
         """Establish theoretical foundation with Education Theorist"""
 
         state.transition_phase(WorkflowPhase.THEORETICAL_FOUNDATION)
+
+        # Start execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.start_execution_phase(
+                phase_name="theoretical_foundation",
+                phase_description="建立教育理论基础",
+                input_data={
+                    "requirements": state.course_requirements,
+                    "agent": "education_theorist"
+                }
+            )
 
         # Start tracking this phase
         if self.collaboration_tracker:
@@ -229,6 +265,15 @@ class PBLOrchestrator:
         }
 
         # Start tracking agent execution
+        agent_execution_id = None
+        if self.task_tracker:
+            agent_execution_id = self.task_tracker.start_agent_execution(
+                agent_name="education_theorist",
+                agent_role="教育理论专家",
+                task_type="analyze_requirements",
+                input_data=task
+            )
+
         execution = None
         if self.collaboration_tracker:
             theorist = self.agents[AgentRole.EDUCATION_THEORIST]
@@ -276,6 +321,17 @@ class PBLOrchestrator:
                 state.theoretical_framework = result["content"]["framework"]
                 final_result = result
 
+        # Complete agent execution tracking
+        if self.task_tracker and agent_execution_id:
+            self.task_tracker.complete_agent_execution(
+                execution_id=agent_execution_id,
+                success=bool(state.theoretical_framework),
+                output_data=final_result or {"framework": state.theoretical_framework},
+                performance_metrics={
+                    "quality_score": 0.9 if state.theoretical_framework else 0.0
+                }
+            )
+
         # Complete execution tracking
         if self.collaboration_tracker and execution:
             self.collaboration_tracker.complete_agent_execution(
@@ -296,12 +352,34 @@ class PBLOrchestrator:
                 }
             )
 
+        # Complete execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.complete_execution_phase(
+                phase_name="theoretical_foundation",
+                success=bool(state.theoretical_framework),
+                output_data={
+                    "theoretical_framework": state.theoretical_framework
+                }
+            )
+
         return state
 
     async def _architecture_design_phase(self, state: AgentState) -> AgentState:
         """Design course architecture with Course Architect"""
 
         state.transition_phase(WorkflowPhase.ARCHITECTURE_DESIGN)
+
+        # Start execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.start_execution_phase(
+                phase_name="architecture_design",
+                phase_description="设计课程架构",
+                input_data={
+                    "requirements": state.course_requirements,
+                    "theoretical_framework": state.theoretical_framework,
+                    "agent": "course_architect"
+                }
+            )
 
         # Prepare task for Course Architect
         task = {
@@ -319,12 +397,24 @@ class PBLOrchestrator:
         )
         state.add_message(architect_message)
 
+        # Start tracking agent execution
+        agent_execution_id = None
+        if self.task_tracker:
+            agent_execution_id = self.task_tracker.start_agent_execution(
+                agent_name="course_architect",
+                agent_role="课程架构师",
+                task_type="design_structure",
+                input_data=task
+            )
+
         # Execute Course Architect
         architect = self.agents[AgentRole.COURSE_ARCHITECT]
 
+        final_result = None
         async for result in architect.execute(state):
             if "architecture" in result.get("content", {}):
                 state.course_architecture = result["content"]["architecture"]
+                final_result = result
 
         # Create module architecture
         for module in state.course_architecture.get("modules", []):
@@ -341,6 +431,28 @@ class PBLOrchestrator:
 
             async for result in architect.execute(state):
                 pass  # Module details processed
+
+        # Complete agent execution tracking
+        if self.task_tracker and agent_execution_id:
+            self.task_tracker.complete_agent_execution(
+                execution_id=agent_execution_id,
+                success=bool(state.course_architecture),
+                output_data=final_result or {"architecture": state.course_architecture},
+                performance_metrics={
+                    "quality_score": 0.85 if state.course_architecture else 0.0
+                }
+            )
+
+        # Complete execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.complete_execution_phase(
+                phase_name="architecture_design",
+                success=bool(state.course_architecture),
+                output_data={
+                    "course_architecture": state.course_architecture,
+                    "modules_count": len(state.course_architecture.get("modules", [])) if state.course_architecture else 0
+                }
+            )
 
         return state
 
@@ -538,6 +650,19 @@ class PBLOrchestrator:
 
         state.transition_phase(WorkflowPhase.FINALIZATION)
 
+        # Start execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.start_execution_phase(
+                phase_name="finalization",
+                phase_description="最终化课程设计",
+                input_data={
+                    "course_architecture": state.course_architecture,
+                    "content_modules": len(state.content_modules),
+                    "assessment_strategy": bool(state.assessment_strategy),
+                    "learning_materials": len(state.learning_materials)
+                }
+            )
+
         # Start tracking finalization phase
         if self.collaboration_tracker:
             self.collaboration_tracker.start_phase(WorkflowPhase.FINALIZATION)
@@ -565,6 +690,18 @@ class PBLOrchestrator:
 
             # Store collaboration record in state for export
             state.collaboration_record = self.collaboration_tracker.get_collaboration_record()
+
+        # Complete execution phase tracking
+        if self.task_tracker:
+            self.task_tracker.complete_execution_phase(
+                phase_name="finalization",
+                success=True,
+                output_data={
+                    "deliverables": deliverables,
+                    "final_quality": final_quality,
+                    "collaboration_record": bool(state.collaboration_record)
+                }
+            )
 
         # Update metrics
         self.metrics["total_runs"] += 1
@@ -1053,6 +1190,21 @@ class PBLOrchestrator:
         if config:
             self.max_iterations = config.get("max_iterations", 3)
 
+        # Initialize task execution tracker
+        task_name = f"PBL课程设计: {requirements.get('topic', '未指定主题')}"
+        self.task_tracker = TaskExecutionTracker(
+            session_id=initial_state.session_id,
+            task_name=task_name
+        )
+
+        # Start task tracking
+        self.task_tracker.start_task(
+            task_type="course_design",
+            requirements=requirements,
+            orchestrator_mode=self.mode.value,
+            max_iterations=self.max_iterations
+        )
+
         # Run the workflow and return final result
         try:
             # Use astream and get the final state
@@ -1077,8 +1229,42 @@ class PBLOrchestrator:
                     # If no AgentState found, use the initial state and copy over the results
                     final_state = initial_state
 
-            return self._compile_deliverables(final_state)
+            # Complete task tracking
+            if self.task_tracker:
+                deliverables = self._compile_deliverables(final_state)
+                self.task_tracker.complete_task(
+                    success=True,
+                    final_output=deliverables,
+                    performance_summary={
+                        "total_iterations": final_state.iteration_count,
+                        "quality_score": final_state.quality_scores.get("final_quality", 0),
+                        "total_tokens": final_state.total_tokens_used,
+                        "api_calls": final_state.api_calls_made
+                    }
+                )
+
+                # Save tracking data to file
+                tracking_file = self.task_tracker.save_tracking_data()
+                print(f"📊 任务执行详情已保存到: {tracking_file}")
+
+            return deliverables
         except Exception as e:
+            # Complete task tracking with error
+            if self.task_tracker:
+                import traceback as tb
+                self.task_tracker.complete_task(
+                    success=False,
+                    error_details={
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                        "traceback": tb.format_exc()
+                    }
+                )
+
+                # Save tracking data even on error
+                tracking_file = self.task_tracker.save_tracking_data()
+                print(f"📊 任务执行详情（包含错误信息）已保存到: {tracking_file}")
+
             # Log the actual error for debugging
             print(f"🚨 LangGraph执行失败: {e}")
             import traceback

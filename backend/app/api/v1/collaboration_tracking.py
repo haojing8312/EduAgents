@@ -122,11 +122,19 @@ async def get_collaboration_flow(session_id: str):
     返回完整的智能体协作流程，包括工作流阶段、智能体交互和状态转换
     """
 
-    if session_id not in agent_service.orchestrators:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    # 首先检查活跃的orchestrator
+    collaboration_record = None
+    if session_id in agent_service.orchestrators:
+        orchestrator = agent_service.orchestrators[session_id]
+        collaboration_record = orchestrator.get_collaboration_record()
 
-    orchestrator = agent_service.orchestrators[session_id]
-    collaboration_record = orchestrator.get_collaboration_record()
+    # 如果没有找到协作记录，检查会话记录
+    if not collaboration_record and session_id in agent_service.sessions:
+        session = agent_service.sessions[session_id]
+        # 从会话结果中获取部分协作数据
+        result = session.get("result", {})
+        if "collaboration_record" in result:
+            collaboration_record = result["collaboration_record"]
 
     if not collaboration_record:
         raise HTTPException(status_code=404, detail=f"No collaboration record found for session {session_id}")
@@ -154,10 +162,27 @@ async def get_ai_call_analytics(session_id: str):
     返回详细的AI API调用统计和分析数据
     """
 
-    if session_id not in agent_service.orchestrators:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    # 首先检查活跃的orchestrator
+    orchestrator = None
+    if session_id in agent_service.orchestrators:
+        orchestrator = agent_service.orchestrators[session_id]
 
-    orchestrator = agent_service.orchestrators[session_id]
+    # 如果没有活跃orchestrator但会话存在，返回默认响应
+    if not orchestrator:
+        if session_id in agent_service.sessions:
+            return AICallAnalyticsResponse(
+                session_id=session_id,
+                total_calls=0,
+                successful_calls=0,
+                failed_calls=0,
+                average_duration_ms=0.0,
+                total_tokens={"input": 0, "output": 0},
+                estimated_cost_usd=0.0,
+                model_usage={},
+                call_timeline=[]
+            )
+        else:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     # 获取AI调用统计
     ai_call_stats = orchestrator.ai_call_logger.get_call_statistics()
@@ -199,14 +224,33 @@ async def get_deliverable_traceability(session_id: str):
     返回每个交付物的数据来源和生成过程追踪
     """
 
-    if session_id not in agent_service.orchestrators:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    # 首先检查活跃的orchestrator
+    collaboration_record = None
+    if session_id in agent_service.orchestrators:
+        orchestrator = agent_service.orchestrators[session_id]
+        collaboration_record = orchestrator.get_collaboration_record()
 
-    orchestrator = agent_service.orchestrators[session_id]
-    collaboration_record = orchestrator.get_collaboration_record()
+    # 如果没有找到协作记录，检查会话记录
+    if not collaboration_record and session_id in agent_service.sessions:
+        session = agent_service.sessions[session_id]
+        result = session.get("result", {})
+        if "collaboration_record" in result:
+            collaboration_record = result["collaboration_record"]
 
+    # 如果仍然没有找到，但会话存在，返回空响应
     if not collaboration_record:
-        raise HTTPException(status_code=404, detail=f"No collaboration record found for session {session_id}")
+        if session_id in agent_service.sessions:
+            return {
+                "session_id": session_id,
+                "deliverable_traces": {},
+                "summary": {
+                    "total_deliverables": 0,
+                    "agents_involved": 0,
+                    "total_processing_time": 0
+                }
+            }
+        else:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     deliverable_traces = collaboration_record.get("deliverable_traceability", {})
     agent_interactions = collaboration_record.get("agent_interactions", [])
@@ -284,10 +328,31 @@ async def export_collaboration_record(
     将完整的协作过程记录导出为指定格式
     """
 
-    if session_id not in agent_service.orchestrators:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    # 首先检查活跃的orchestrator
+    orchestrator = None
+    if session_id in agent_service.orchestrators:
+        orchestrator = agent_service.orchestrators[session_id]
 
-    orchestrator = agent_service.orchestrators[session_id]
+    # 如果没有活跃orchestrator但会话存在，提供基本导出
+    if not orchestrator:
+        if session_id in agent_service.sessions:
+            session = agent_service.sessions[session_id]
+            if format_type == "json":
+                return {
+                    "session_id": session_id,
+                    "format": "json",
+                    "content": {
+                        "session_id": session_id,
+                        "status": session.get("status", "unknown"),
+                        "error": session.get("error"),
+                        "note": "This session failed or is incomplete. Limited data available."
+                    },
+                    "exported_at": datetime.utcnow().isoformat()
+                }
+            else:
+                raise HTTPException(status_code=501, detail="CSV export not yet implemented for failed sessions")
+        else:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     try:
         if format_type == "json":

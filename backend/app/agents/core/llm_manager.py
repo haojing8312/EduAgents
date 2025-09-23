@@ -5,6 +5,7 @@ Implements intelligent model selection, fallback mechanisms, token optimization,
 
 import asyncio
 import json
+import logging
 import os
 from datetime import datetime
 from enum import Enum
@@ -17,6 +18,9 @@ from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
 
 
 class ModelType(Enum):
@@ -554,6 +558,52 @@ Ensure your response is valid JSON that matches the schema exactly.
 
             return content
 
+        def advanced_json_repair(content: str, error: json.JSONDecodeError) -> str:
+            """Advanced JSON repair mechanisms for common formatting issues"""
+            try:
+                # Handle specific error types
+                error_msg = str(error).lower()
+
+                if "expecting ',' delimiter" in error_msg:
+                    # Look for missing commas between key-value pairs
+                    lines = content.split('\n')
+                    repaired_lines = []
+
+                    for i, line in enumerate(lines):
+                        stripped = line.strip()
+                        # If line ends with " and next line starts with ", add comma
+                        if (stripped.endswith('"') and not stripped.endswith('",') and
+                            i < len(lines) - 1 and lines[i + 1].strip().startswith('"')):
+                            line = line.rstrip() + ','
+                        repaired_lines.append(line)
+
+                    content = '\n'.join(repaired_lines)
+
+                elif "expecting property name" in error_msg:
+                    # Handle trailing comma issues
+                    content = re.sub(r',\s*}', '}', content)
+                    content = re.sub(r',\s*]', ']', content)
+
+                elif "unterminated string" in error_msg:
+                    # Find and fix unterminated strings
+                    if hasattr(error, 'pos'):
+                        # Truncate at error position and try to close properly
+                        error_pos = error.pos
+                        before_error = content[:error_pos]
+
+                        # Find last complete key-value pair
+                        last_quote = before_error.rfind('"')
+                        if last_quote > 0:
+                            # Look backwards to find proper truncation point
+                            truncate_pos = before_error.rfind('",', 0, last_quote)
+                            if truncate_pos > 0:
+                                content = before_error[:truncate_pos + 2] + '\n}'
+
+                return content
+            except Exception as repair_error:
+                logger.debug(f"JSON高级修复失败: {repair_error}")
+                return content
+
         try:
             # Clean and extract JSON from response
             content = clean_json_content(response.content)
@@ -562,7 +612,17 @@ Ensure your response is valid JSON that matches the schema exactly.
         except json.JSONDecodeError as e:
             logger.warning(f"JSON解析失败: {e}, 尝试修复...")
 
-            # Try to fix the JSON by handling incomplete strings
+            # Try to fix the JSON using advanced repair mechanisms
+            try:
+                # Apply advanced JSON repair
+                repaired_content = advanced_json_repair(content, e)
+                result = json.loads(repaired_content)
+                logger.info(f"✅ JSON高级修复成功")
+                return result
+            except json.JSONDecodeError:
+                logger.warning(f"JSON高级修复失败，尝试传统修复...")
+
+            # Try legacy repair approach if advanced repair fails
             try:
                 # Attempt to fix incomplete JSON
                 content = clean_json_content(response.content)
