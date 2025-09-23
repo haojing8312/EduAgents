@@ -108,6 +108,10 @@ class AgentState:
     recovery_checkpoints: List[Dict[str, Any]] = field(default_factory=list)
     fallback_strategies: Dict[str, Any] = field(default_factory=dict)
 
+    # Collaboration Tracking
+    collaboration_tracker: Optional[Any] = field(default=None)  # Injected by orchestrator
+    collaboration_record: Optional[Dict[str, Any]] = field(default=None)  # Final record
+
     # Metadata
     session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -201,4 +205,8 @@ class AgentState:
             "total_tokens_used": self.total_tokens_used,
             "api_calls_made": self.api_calls_made,
             "last_update": self.last_update.isoformat(),
+            "collaboration_record": self.collaboration_record,
+            "workflow_history": [phase.value for phase in self.workflow_history],
+            "message_history_count": len(self.message_history),
+            "checkpoint_count": len(self.recovery_checkpoints)
         }

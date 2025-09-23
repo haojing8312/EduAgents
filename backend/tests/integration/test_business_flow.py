@@ -30,7 +30,7 @@ fake = Faker('zh_CN')
 
 
 class BusinessFlowTester:
-    """业务流程测试器"""
+    """业务流程测试器 - 增强版，集成协作追踪功能验证"""
 
     def __init__(self, base_url: str = "http://localhost:48284"):
         self.base_url = base_url
@@ -38,6 +38,13 @@ class BusinessFlowTester:
         self.client = httpx.AsyncClient(timeout=60.0, trust_env=False)
         self.session_data = {}
         self.test_results = {}
+        self.collaboration_data = {}
+
+        # 创建exports目录结构
+        self.exports_dir = Path(__file__).parent.parent.parent / "exports" / "business_tests"
+        self.test_start_time = datetime.now()
+        self.test_run_dir = self.exports_dir / f"test_run_{self.test_start_time.strftime('%Y%m%d_%H%M%S')}"
+        self.test_run_dir.mkdir(parents=True, exist_ok=True)
 
     async def cleanup(self):
         """清理资源"""
@@ -73,6 +80,83 @@ class BusinessFlowTester:
         self.test_results[test_name] = result
         status = "✅" if success else "❌"
         logger.info(f"{status} {test_name}")
+
+    async def export_collaboration_data(self, session_id: str):
+        """导出协作追踪数据"""
+        try:
+            logger.info("🔍 导出协作追踪数据...")
+
+            # 导出协作流程数据
+            try:
+                response = await self.client.get(f"{self.base_url}/api/v1/collaboration/sessions/{session_id}/flow")
+                if response.status_code == 200:
+                    flow_data = response.json()
+                    with open(self.test_run_dir / "collaboration_flow.json", 'w', encoding='utf-8') as f:
+                        json.dump(flow_data, f, ensure_ascii=False, indent=2)
+                    logger.info("✅ 协作流程数据导出成功")
+                    self.collaboration_data["flow"] = flow_data
+                else:
+                    logger.warning(f"⚠️ 协作流程数据导出失败: HTTP {response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ 协作流程数据导出异常: {e}")
+
+            # 导出AI调用分析数据
+            try:
+                response = await self.client.get(f"{self.base_url}/api/v1/collaboration/sessions/{session_id}/ai-calls")
+                if response.status_code == 200:
+                    ai_data = response.json()
+                    with open(self.test_run_dir / "ai_calls_analytics.json", 'w', encoding='utf-8') as f:
+                        json.dump(ai_data, f, ensure_ascii=False, indent=2)
+                    logger.info("✅ AI调用分析数据导出成功")
+                    self.collaboration_data["ai_calls"] = ai_data
+                else:
+                    logger.warning(f"⚠️ AI调用分析数据导出失败: HTTP {response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ AI调用分析数据导出异常: {e}")
+
+            # 导出交付物追踪数据
+            try:
+                response = await self.client.get(f"{self.base_url}/api/v1/collaboration/sessions/{session_id}/deliverables")
+                if response.status_code == 200:
+                    deliverable_data = response.json()
+                    with open(self.test_run_dir / "deliverable_traceability.json", 'w', encoding='utf-8') as f:
+                        json.dump(deliverable_data, f, ensure_ascii=False, indent=2)
+                    logger.info("✅ 交付物追踪数据导出成功")
+                    self.collaboration_data["deliverables"] = deliverable_data
+                else:
+                    logger.warning(f"⚠️ 交付物追踪数据导出失败: HTTP {response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ 交付物追踪数据导出异常: {e}")
+
+            # 导出完整的协作报告
+            try:
+                response = await self.client.get(f"{self.base_url}/api/v1/collaboration/sessions/{session_id}/export?format_type=json")
+                if response.status_code == 200:
+                    export_data = response.json()
+                    with open(self.test_run_dir / "complete_collaboration_report.json", 'w', encoding='utf-8') as f:
+                        json.dump(export_data, f, ensure_ascii=False, indent=2)
+                    logger.info("✅ 完整协作报告导出成功")
+                    self.collaboration_data["complete_report"] = export_data
+                else:
+                    logger.warning(f"⚠️ 完整协作报告导出失败: HTTP {response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ 完整协作报告导出异常: {e}")
+
+            # 记录协作追踪数据导出结果
+            exported_files = []
+            for filename in ["collaboration_flow.json", "ai_calls_analytics.json", "deliverable_traceability.json", "complete_collaboration_report.json"]:
+                filepath = self.test_run_dir / filename
+                if filepath.exists():
+                    exported_files.append(filename)
+
+            self.log_test_result("协作数据导出", len(exported_files) > 0, {
+                "exported_files": exported_files,
+                "export_count": len(exported_files)
+            })
+
+        except Exception as e:
+            logger.error(f"❌ 协作数据导出失败: {e}")
+            self.log_test_result("协作数据导出", False, {"error": str(e)})
 
     def _validate_course_design_result(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
         """验证课程设计结果的质量"""
@@ -141,6 +225,10 @@ class BusinessFlowTester:
                 agents = data.get("data", {}).get("agents", [])
                 success = len(agents) >= 5  # 至少5个智能体
 
+                # 保存智能体能力数据
+                with open(self.test_run_dir / "agents_capabilities.json", 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+
             self.log_test_result("系统能力查询", success, {
                 "status_code": response.status_code,
                 "agents_count": len(agents) if success else 0
@@ -148,6 +236,37 @@ class BusinessFlowTester:
             return success
         except Exception as e:
             self.log_test_result("系统能力查询", False, {"error": str(e)})
+            return False
+
+    async def test_collaboration_tracking_apis(self) -> bool:
+        """测试协作追踪API端点"""
+        try:
+            # 测试协作会话列表API
+            response = await self.client.get(f"{self.base_url}/api/v1/collaboration/sessions")
+            sessions_success = response.status_code == 200
+            if sessions_success:
+                sessions_data = response.json()
+                with open(self.test_run_dir / "collaboration_sessions.json", 'w', encoding='utf-8') as f:
+                    json.dump(sessions_data, f, ensure_ascii=False, indent=2)
+
+            # 测试协作分析概览API
+            response = await self.client.get(f"{self.base_url}/api/v1/collaboration/analytics/overview")
+            analytics_success = response.status_code == 200
+            if analytics_success:
+                analytics_data = response.json()
+                with open(self.test_run_dir / "collaboration_analytics.json", 'w', encoding='utf-8') as f:
+                    json.dump(analytics_data, f, ensure_ascii=False, indent=2)
+
+            overall_success = sessions_success and analytics_success
+
+            self.log_test_result("协作追踪API", overall_success, {
+                "sessions_api": sessions_success,
+                "analytics_api": analytics_success
+            })
+            return overall_success
+
+        except Exception as e:
+            self.log_test_result("协作追踪API", False, {"error": str(e)})
             return False
 
     # 删除非核心模板测试方法 - 专注核心多智能体协作功能
@@ -184,7 +303,8 @@ class BusinessFlowTester:
                     "streaming": True,
                     "max_iterations": 3,
                     "model_preference": "claude",
-                    "temperature": 0.7
+                    "temperature": 0.7,
+                    "enable_collaboration_tracking": True  # 重要：启用协作追踪
                 }
             }
 
@@ -296,6 +416,13 @@ class BusinessFlowTester:
 
             result_data = response.json()["data"]
             self.session_data["design_result"] = result_data
+
+            # 保存课程设计结果
+            with open(self.test_run_dir / "course_design_result.json", 'w', encoding='utf-8') as f:
+                json.dump(result_data, f, ensure_ascii=False, indent=2)
+
+            # 导出协作追踪数据
+            await self.export_collaboration_data(session_id)
 
             # 验证结果质量
             result_quality_check = self._validate_course_design_result(result_data)
@@ -450,11 +577,46 @@ class BusinessFlowTester:
             return False
 
     def generate_test_report(self) -> Dict[str, Any]:
-        """生成测试报告"""
+        """生成测试报告 - 增强版，包含协作追踪验证"""
         total_tests = len(self.test_results)
         successful_tests = sum(1 for result in self.test_results.values() if result["success"])
 
+        # 检查协作追踪相关的测试结果
+        collaboration_tracking_validation = {
+            "tracking_api_available": self.test_results.get("协作追踪API", {}).get("success", False),
+            "collaboration_data_exported": self.test_results.get("协作数据导出", {}).get("success", False),
+            "evidence_found": False,
+            "exported_files_count": 0
+        }
+
+        # 检查导出的协作数据文件
+        collaboration_files = [
+            "collaboration_flow.json",
+            "ai_calls_analytics.json",
+            "deliverable_traceability.json",
+            "complete_collaboration_report.json"
+        ]
+
+        existing_files = []
+        for filename in collaboration_files:
+            filepath = self.test_run_dir / filename
+            if filepath.exists():
+                existing_files.append(filename)
+
+        collaboration_tracking_validation["exported_files_count"] = len(existing_files)
+        collaboration_tracking_validation["exported_files"] = existing_files
+
+        # 检查课程设计结果中是否包含协作证据
+        design_result = self.session_data.get("design_result", {})
+        if design_result and "collaboration_evidence" in design_result:
+            collaboration_tracking_validation["evidence_found"] = True
+
         report = {
+            "test_metadata": {
+                "test_start_time": self.test_start_time.isoformat(),
+                "test_end_time": datetime.now().isoformat(),
+                "export_directory": str(self.test_run_dir)
+            },
             "summary": {
                 "total_tests": total_tests,
                 "successful_tests": successful_tests,
@@ -462,8 +624,10 @@ class BusinessFlowTester:
                 "success_rate": f"{(successful_tests / total_tests * 100):.1f}%" if total_tests > 0 else "0%",
                 "test_time": datetime.now().isoformat()
             },
+            "collaboration_tracking_validation": collaboration_tracking_validation,
             "results": self.test_results,
-            "session_data": self.session_data
+            "session_data": self.session_data,
+            "collaboration_data": self.collaboration_data
         }
 
         return report
@@ -482,11 +646,10 @@ class BusinessFlowTester:
         test_flows = [
             ("基础连通性测试", self.test_root_endpoint),
             ("系统能力查询", self.test_system_capabilities),
-            # 删除非核心功能测试，专注核心多智能体协作
+            ("协作追踪API测试", self.test_collaboration_tracking_apis),
             ("课程设计会话流程", self.test_course_design_session_flow),
             ("课程迭代优化流程", self.test_course_iteration_flow),
             ("课程导出功能", self.test_course_export_flow),
-            # 保留核心指标监控
             ("智能体性能指标", self.test_agent_metrics),
             ("会话清理", self.test_session_cleanup),
         ]
@@ -527,14 +690,50 @@ async def main():
         # 运行测试
         report = await tester.run_complete_business_flow()
 
-        # 保存测试报告
-        report_path = Path(__file__).parent / "test_reports" / f"business_flow_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        report_path.parent.mkdir(parents=True, exist_ok=True)
+        # 保存测试报告到exports目录
+        if hasattr(tester, 'test_run_dir'):
+            report_path = tester.test_run_dir / "business_flow_report.json"
+        else:
+            report_path = Path(__file__).parent / "test_reports" / f"business_flow_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            report_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(report_path, 'w', encoding='utf-8') as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
 
         logger.info(f"📄 测试报告已保存: {report_path}")
+
+        # 生成可读的摘要文档
+        if hasattr(tester, 'test_run_dir'):
+            summary_path = tester.test_run_dir / "business_flow_summary.md"
+            collaboration_validation = report.get("collaboration_tracking_validation", {})
+
+            summary_text = f"""# 业务流程测试报告 - 协作追踪验证
+
+## 测试概览
+- 测试时间: {report.get('test_metadata', {}).get('test_start_time', 'N/A')}
+- 导出目录: {report.get('test_metadata', {}).get('export_directory', 'N/A')}
+- 总测试数: {report['summary']['total_tests']}
+- 成功测试: {report['summary']['successful_tests']}
+- 失败测试: {report['summary']['failed_tests']}
+- 成功率: {report['summary']['success_rate']}
+
+## 协作追踪验证结果
+- 追踪API可用: {'✅' if collaboration_validation.get('tracking_api_available') else '❌'}
+- 协作数据导出: {'✅' if collaboration_validation.get('collaboration_data_exported') else '❌'}
+- 协作证据发现: {'✅' if collaboration_validation.get('evidence_found') else '❌'}
+- 导出文件数量: {collaboration_validation.get('exported_files_count', 0)}
+
+## 导出的协作追踪文件
+{chr(10).join(f'- {filename}' for filename in collaboration_validation.get('exported_files', []))}
+
+## 测试结论
+{'🎉 协作追踪功能验证成功！完整的JSON报告已保存，可以通过导出文件验证多智能体协作过程。' if collaboration_validation.get('collaboration_data_exported') else '⚠️ 协作追踪功能验证不完整，请检查详细测试结果。'}
+"""
+
+            with open(summary_path, 'w', encoding='utf-8') as f:
+                f.write(summary_text)
+
+            logger.info(f"📄 测试摘要已保存: {summary_path}")
 
         # 输出关键结果
         if "summary" in report:
@@ -548,6 +747,26 @@ async def main():
             print(f"成功率: {summary['success_rate']}")
             print(f"执行时间: {report.get('execution_time_seconds', 0)}秒")
             print("="*60)
+
+            # 输出协作追踪验证结果
+            if "collaboration_tracking_validation" in report:
+                collaboration_validation = report["collaboration_tracking_validation"]
+                print("\n🎯 协作追踪功能验证结果")
+                print("="*40)
+                print(f"追踪API可用: {'✅' if collaboration_validation.get('tracking_api_available') else '❌'}")
+                print(f"协作数据导出: {'✅' if collaboration_validation.get('collaboration_data_exported') else '❌'}")
+                print(f"协作证据发现: {'✅' if collaboration_validation.get('evidence_found') else '❌'}")
+                print(f"导出文件数量: {collaboration_validation.get('exported_files_count', 0)}")
+
+                if collaboration_validation.get('exported_files'):
+                    print("导出的协作文件:")
+                    for filename in collaboration_validation.get('exported_files', []):
+                        print(f"  - {filename}")
+
+                if hasattr(tester, 'test_run_dir'):
+                    print(f"📁 完整报告位置: {tester.test_run_dir}")
+
+                print("="*40)
 
             # 失败的测试详情
             failed_tests = [name for name, result in report["results"].items() if not result["success"]]

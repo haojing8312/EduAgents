@@ -1,6 +1,7 @@
 """
 PBL Orchestrator - LangGraph-based Multi-Agent Coordination System
 World-class orchestration engine for PBL course design
+Enhanced with comprehensive collaboration tracking
 """
 
 import asyncio
@@ -21,6 +22,8 @@ from ..specialists import (
 )
 from .llm_manager import LLMManager, ModelType
 from .state import AgentMessage, AgentRole, AgentState, MessageType, WorkflowPhase
+from ...core.collaboration_tracker import CollaborationTracker
+from ...core.ai_call_logger import AICallLogger
 
 
 class OrchestratorMode(Enum):
@@ -45,6 +48,7 @@ class PBLOrchestrator:
         mode: OrchestratorMode = OrchestratorMode.FULL_COURSE,
         enable_streaming: bool = True,
         max_iterations: int = 3,
+        enable_collaboration_tracking: bool = True,
     ):
         """Initialize the orchestrator with agents and workflow"""
 
@@ -55,6 +59,11 @@ class PBLOrchestrator:
         self.mode = mode
         self.enable_streaming = enable_streaming
         self.max_iterations = max_iterations
+        self.enable_collaboration_tracking = enable_collaboration_tracking
+
+        # Initialize collaboration tracking
+        self.collaboration_tracker: Optional[CollaborationTracker] = None
+        self.ai_call_logger = AICallLogger()
 
         # Initialize specialized agents
         self.agents = {
@@ -64,6 +73,11 @@ class PBLOrchestrator:
             AgentRole.ASSESSMENT_EXPERT: AssessmentExpertAgent(self.llm_manager),
             AgentRole.MATERIAL_CREATOR: MaterialCreatorAgent(self.llm_manager),
         }
+
+        # Inject tracking capabilities into agents if enabled
+        if self.enable_collaboration_tracking:
+            for agent in self.agents.values():
+                agent.ai_call_logger = self.ai_call_logger
 
         # Build the LangGraph workflow
         self.workflow = self._build_workflow()
@@ -141,9 +155,27 @@ class PBLOrchestrator:
         return workflow
 
     async def _initialize_phase(self, state: AgentState) -> AgentState:
-        """Initialize the course design process"""
+        """Initialize the course design process with collaboration tracking"""
 
         state.transition_phase(WorkflowPhase.INITIALIZATION)
+
+        # Initialize collaboration tracking
+        if self.enable_collaboration_tracking and not self.collaboration_tracker:
+            self.collaboration_tracker = CollaborationTracker(state.session_id)
+            self.collaboration_tracker.start_session(
+                requirements=state.course_requirements,
+                config={
+                    "mode": self.mode.value,
+                    "enable_streaming": self.enable_streaming,
+                    "max_iterations": self.max_iterations
+                }
+            )
+            # Inject tracker into state for agent access
+            state.collaboration_tracker = self.collaboration_tracker
+
+        # Start tracking initialization phase
+        if self.collaboration_tracker:
+            self.collaboration_tracker.start_phase(WorkflowPhase.INITIALIZATION)
 
         # Validate requirements
         if not state.course_requirements:
@@ -167,6 +199,18 @@ class PBLOrchestrator:
         # Create initial checkpoint
         state.create_checkpoint()
 
+        # Capture initial state snapshot
+        if self.collaboration_tracker:
+            self.collaboration_tracker.capture_state_snapshot(
+                trigger_event="initialization_complete",
+                description="Course design initialization completed",
+                state_data={
+                    "requirements": state.course_requirements,
+                    "mode": self.mode.value,
+                    "agent_statuses": state.agent_statuses
+                }
+            )
+
         return state
 
     async def _theoretical_foundation_phase(self, state: AgentState) -> AgentState:
@@ -174,11 +218,28 @@ class PBLOrchestrator:
 
         state.transition_phase(WorkflowPhase.THEORETICAL_FOUNDATION)
 
+        # Start tracking this phase
+        if self.collaboration_tracker:
+            self.collaboration_tracker.start_phase(WorkflowPhase.THEORETICAL_FOUNDATION)
+
         # Prepare task for Education Theorist
         task = {
             "type": "analyze_requirements",
             "requirements": state.course_requirements,
         }
+
+        # Start tracking agent execution
+        execution = None
+        if self.collaboration_tracker:
+            theorist = self.agents[AgentRole.EDUCATION_THEORIST]
+            execution = self.collaboration_tracker.start_agent_execution(
+                agent_role=AgentRole.EDUCATION_THEORIST,
+                agent_name=theorist.name,
+                task_type="analyze_requirements",
+                phase=WorkflowPhase.THEORETICAL_FOUNDATION,
+                input_data=task,
+                context={"streaming": self.enable_streaming}
+            )
 
         # Execute Education Theorist
         theorist = self.agents[AgentRole.EDUCATION_THEORIST]
@@ -209,9 +270,31 @@ class PBLOrchestrator:
         state.add_message(framework_message)
 
         # Process framework development
+        final_result = None
         async for result in theorist.execute(state):
             if "framework" in result.get("content", {}):
                 state.theoretical_framework = result["content"]["framework"]
+                final_result = result
+
+        # Complete execution tracking
+        if self.collaboration_tracker and execution:
+            self.collaboration_tracker.complete_agent_execution(
+                execution_id=execution.execution_id,
+                output=final_result or {"framework": state.theoretical_framework},
+                success=bool(state.theoretical_framework),
+                quality_score=0.9 if state.theoretical_framework else 0.0
+            )
+
+        # Capture state snapshot after this phase
+        if self.collaboration_tracker:
+            self.collaboration_tracker.capture_state_snapshot(
+                trigger_event="theoretical_foundation_complete",
+                description="Theoretical foundation established",
+                state_data={
+                    "theoretical_framework": state.theoretical_framework,
+                    "agent_statuses": state.agent_statuses
+                }
+            )
 
         return state
 
@@ -416,9 +499,13 @@ class PBLOrchestrator:
         return state
 
     async def _finalization_phase(self, state: AgentState) -> AgentState:
-        """Finalize the course design"""
+        """Finalize the course design with comprehensive collaboration tracking"""
 
         state.transition_phase(WorkflowPhase.FINALIZATION)
+
+        # Start tracking finalization phase
+        if self.collaboration_tracker:
+            self.collaboration_tracker.start_phase(WorkflowPhase.FINALIZATION)
 
         # Final quality check
         final_quality = await self._final_quality_check(state)
@@ -427,11 +514,22 @@ class PBLOrchestrator:
         # Compile final deliverables
         deliverables = self._compile_deliverables(state)
 
-        # Generate export files
+        # Trace deliverable sources
+        if self.collaboration_tracker:
+            self._trace_final_deliverables(deliverables, state)
+
+        # Generate export files (including collaboration evidence)
         await self._generate_export_files(deliverables, state)
 
         # Create final checkpoint
         final_checkpoint = state.create_checkpoint()
+
+        # Complete collaboration tracking
+        if self.collaboration_tracker:
+            self.collaboration_tracker.complete_session()
+
+            # Store collaboration record in state for export
+            state.collaboration_record = self.collaboration_tracker.get_collaboration_record()
 
         # Update metrics
         self.metrics["total_runs"] += 1
@@ -813,6 +911,81 @@ class PBLOrchestrator:
 
         return formatted_resources
 
+    def _trace_final_deliverables(self, deliverables: Dict[str, Any], state: AgentState) -> None:
+        """追踪最终交付物的数据来源"""
+
+        if not self.collaboration_tracker:
+            return
+
+        # 追踪课程概览来源
+        course_overview = deliverables.get("course_overview", {})
+        if course_overview:
+            # 理论框架来源于教育理论专家
+            theorist_executions = [
+                exec_id for exec_id, execution in self.collaboration_tracker.all_executions.items()
+                if execution.agent_role == AgentRole.EDUCATION_THEORIST.value
+            ]
+            self.collaboration_tracker.trace_deliverable(
+                component_name="theoretical_foundation",
+                data_content=course_overview.get("theoretical_foundation", {}),
+                source_execution_ids=theorist_executions,
+                contributing_agents=[AgentRole.EDUCATION_THEORIST.value]
+            )
+
+            # 课程架构来源于课程架构师
+            architect_executions = [
+                exec_id for exec_id, execution in self.collaboration_tracker.all_executions.items()
+                if execution.agent_role == AgentRole.COURSE_ARCHITECT.value
+            ]
+            self.collaboration_tracker.trace_deliverable(
+                component_name="course_architecture",
+                data_content=course_overview.get("architecture", {}),
+                source_execution_ids=architect_executions,
+                contributing_agents=[AgentRole.COURSE_ARCHITECT.value]
+            )
+
+        # 追踪内容模块来源
+        content = deliverables.get("content", {})
+        if content.get("modules"):
+            designer_executions = [
+                exec_id for exec_id, execution in self.collaboration_tracker.all_executions.items()
+                if execution.agent_role == AgentRole.CONTENT_DESIGNER.value
+            ]
+            self.collaboration_tracker.trace_deliverable(
+                component_name="content_modules",
+                data_content=content.get("modules", []),
+                source_execution_ids=designer_executions,
+                contributing_agents=[AgentRole.CONTENT_DESIGNER.value]
+            )
+
+        # 追踪评估策略来源
+        assessment = deliverables.get("assessment", {})
+        if assessment.get("strategy"):
+            assessment_executions = [
+                exec_id for exec_id, execution in self.collaboration_tracker.all_executions.items()
+                if execution.agent_role == AgentRole.ASSESSMENT_EXPERT.value
+            ]
+            self.collaboration_tracker.trace_deliverable(
+                component_name="assessment_strategy",
+                data_content=assessment.get("strategy", {}),
+                source_execution_ids=assessment_executions,
+                contributing_agents=[AgentRole.ASSESSMENT_EXPERT.value]
+            )
+
+        # 追踪学习材料来源
+        materials = deliverables.get("materials", {})
+        if materials.get("resources"):
+            material_executions = [
+                exec_id for exec_id, execution in self.collaboration_tracker.all_executions.items()
+                if execution.agent_role == AgentRole.MATERIAL_CREATOR.value
+            ]
+            self.collaboration_tracker.trace_deliverable(
+                component_name="learning_materials",
+                data_content=materials.get("resources", []),
+                source_execution_ids=material_executions,
+                contributing_agents=[AgentRole.MATERIAL_CREATOR.value]
+            )
+
     async def _broadcast_update(
         self, state: AgentState, update: Dict[str, Any]
     ) -> None:
@@ -935,14 +1108,45 @@ class PBLOrchestrator:
         return min((completed_weight + current_weight) * 100, 100)
 
     def get_metrics(self) -> Dict[str, Any]:
-        """Get orchestrator metrics"""
+        """Get comprehensive orchestrator metrics including collaboration tracking"""
 
         agent_metrics = {}
         for role, agent in self.agents.items():
             agent_metrics[role.value] = agent.get_performance_metrics()
 
-        return {
+        base_metrics = {
             "orchestrator": self.metrics,
             "agents": agent_metrics,
             "llm": self.llm_manager.get_metrics(),
         }
+
+        # Add collaboration tracking metrics if available
+        if self.collaboration_tracker:
+            collaboration_record = self.collaboration_tracker.get_collaboration_record()
+            base_metrics["collaboration"] = {
+                "session_metadata": collaboration_record.get("session_metadata", {}),
+                "workflow_statistics": collaboration_record.get("workflow_execution", {}),
+                "collaboration_statistics": collaboration_record.get("collaboration_statistics", {}),
+                "total_agent_executions": len(collaboration_record.get("agent_interactions", [])),
+                "total_state_snapshots": len(collaboration_record.get("state_evolution", [])),
+                "deliverable_traces": len(collaboration_record.get("deliverable_traceability", {}))
+            }
+
+        # Add AI call statistics if available
+        if self.ai_call_logger:
+            ai_statistics = self.ai_call_logger.get_call_statistics()
+            base_metrics["ai_calls"] = ai_statistics
+
+        return base_metrics
+
+    def get_collaboration_record(self) -> Optional[Dict[str, Any]]:
+        """获取完整的协作记录"""
+        if self.collaboration_tracker:
+            return self.collaboration_tracker.get_collaboration_record()
+        return None
+
+    def export_collaboration_report(self, format_type: str = "json") -> Optional[str]:
+        """导出协作报告"""
+        if self.collaboration_tracker:
+            return self.collaboration_tracker.export_collaboration_report(format_type)
+        return None

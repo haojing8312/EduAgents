@@ -1,6 +1,7 @@
 """
 Base Agent Class - Foundation for all specialized agents
 Implements core agent behaviors and communication protocols
+Enhanced with comprehensive collaboration tracking
 """
 
 import asyncio
@@ -62,6 +63,10 @@ class BaseAgent(ABC):
         self.tasks_completed = 0
         self.total_processing_time = 0
         self.quality_scores: List[float] = []
+
+        # Collaboration tracking (injected by orchestrator)
+        self.ai_call_logger = None
+        self.current_execution_id: Optional[str] = None
 
         # System prompts cache
         self._system_prompts: Dict[str, str] = {}
@@ -218,7 +223,7 @@ class BaseAgent(ABC):
         stream: bool = False,
         temperature: float = 0.7,
     ) -> AsyncGenerator[str, None] | str:
-        """Generate response using LLM with detailed logging"""
+        """Generate response using LLM with detailed logging and tracking"""
 
         # Log prompt details
         prompt_preview = prompt[:300] + "..." if len(prompt) > 300 else prompt
@@ -229,6 +234,16 @@ class BaseAgent(ABC):
         logger.info(f"⚙️ [{self.name}] 系统提示: {system_preview}")
         logger.info(f"🌡️ [{self.name}] 温度参数: {temperature}")
         logger.info(f"🎯 [{self.name}] 模型: {self.preferred_model}")
+
+        # Start AI call tracking
+        ai_call = None
+        if self.ai_call_logger:
+            ai_call = self.ai_call_logger.start_call(
+                model=str(self.preferred_model) if self.preferred_model else "unknown",
+                prompt=prompt,
+                system_prompt=system_prompt or self._system_prompts.get("default", ""),
+                temperature=temperature
+            )
 
         start_time = datetime.utcnow()
 
@@ -244,6 +259,7 @@ class BaseAgent(ABC):
 
             if stream:
                 logger.info(f"🔄 [{self.name}] 开始流式响应")
+                # For streaming, we'll need to collect response and complete tracking later
                 return response
             else:
                 api_duration = (datetime.utcnow() - start_time).total_seconds()
@@ -253,11 +269,33 @@ class BaseAgent(ABC):
                 logger.info(f"📖 [{self.name}] 响应内容预览: {response_preview}")
                 logger.info(f"📊 [{self.name}] 响应长度: {len(response.content)} 字符")
 
+                # Complete AI call tracking
+                if ai_call and self.ai_call_logger:
+                    tokens_used = getattr(response, 'usage', {}) or {"input": 0, "output": 0}
+                    self.ai_call_logger.complete_call(
+                        call_id=ai_call.call_id,
+                        response_content=response.content,
+                        tokens_used=tokens_used,
+                        model_info={"model": str(self.preferred_model)},
+                        success=True
+                    )
+
                 return response.content
 
         except Exception as e:
             api_duration = (datetime.utcnow() - start_time).total_seconds()
             logger.error(f"❌ [{self.name}] AI调用失败，耗时 {api_duration:.2f}秒: {str(e)}", exc_info=True)
+
+            # Complete failed AI call tracking
+            if ai_call and self.ai_call_logger:
+                self.ai_call_logger.complete_call(
+                    call_id=ai_call.call_id,
+                    response_content="",
+                    tokens_used={"input": 0, "output": 0},
+                    success=False,
+                    error_message=str(e)
+                )
+
             raise
 
     async def _generate_structured_response(

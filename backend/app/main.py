@@ -17,6 +17,7 @@ from app.api.v1.health import router as health_router
 from app.api.v1.agents import router as agents_router
 from app.api.v1.courses import router as courses_router
 from app.api.v1.websocket import router as websocket_router
+from app.api.v1.collaboration_tracking import router as collaboration_router
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -204,6 +205,7 @@ app.include_router(health_router, prefix="/api", tags=["健康检查"])
 app.include_router(agents_router, prefix="/api/v1", tags=["智能体"])
 app.include_router(courses_router, prefix="/api/v1", tags=["课程管理"])
 app.include_router(websocket_router, prefix="/api/v1/ws", tags=["实时通信"])
+app.include_router(collaboration_router, prefix="/api/v1", tags=["协作追踪"])
 
 
 # 根路径

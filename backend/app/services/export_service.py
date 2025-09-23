@@ -641,7 +641,7 @@ class CourseExportService:
 
     async def export_to_json(self, course_data: Dict[str, Any], file_path: Path,
                            include_resources: bool, include_assessments: bool) -> Path:
-        """导出为JSON格式"""
+        """导出为JSON格式，包含协作过程证据"""
 
         # 创建导出数据的副本
         export_data = course_data.copy()
@@ -655,19 +655,132 @@ class CourseExportService:
         if not include_assessments:
             export_data.pop('assessments', None)
 
+        # 添加协作过程证据（如果存在）
+        collaboration_evidence = self._extract_collaboration_evidence(course_data)
+        if collaboration_evidence:
+            export_data['collaboration_evidence'] = collaboration_evidence
+
         # 添加导出元数据
         export_data['export_metadata'] = {
             'exported_at': datetime.now().isoformat(),
             'export_format': 'json',
             'includes_resources': include_resources,
             'includes_assessments': include_assessments,
-            'generator': 'AI-Native PBL Course Design System'
+            'includes_collaboration_evidence': bool(collaboration_evidence),
+            'generator': 'AI-Native PBL Course Design System with Multi-Agent Collaboration Tracking'
         }
 
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(export_data, f, ensure_ascii=False, indent=2)
 
         return file_path
+
+    def _extract_collaboration_evidence(self, course_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """提取协作过程证据"""
+
+        # 检查课程数据中是否包含协作记录
+        collaboration_record = course_data.get('collaboration_record')
+        if not collaboration_record:
+            return None
+
+        # 构建简化的协作证据结构
+        evidence = {
+            "session_overview": {
+                "session_id": collaboration_record.get("session_metadata", {}).get("session_id"),
+                "total_duration_seconds": collaboration_record.get("session_metadata", {}).get("total_duration_seconds"),
+                "course_requirements": collaboration_record.get("session_metadata", {}).get("course_requirements"),
+                "session_config": collaboration_record.get("session_metadata", {}).get("session_config")
+            },
+            "agent_collaboration": {
+                "total_agent_executions": len(collaboration_record.get("agent_interactions", [])),
+                "agents_involved": list(set([
+                    interaction.get("agent_role")
+                    for interaction in collaboration_record.get("agent_interactions", [])
+                    if interaction.get("agent_role")
+                ])),
+                "workflow_phases": [
+                    {
+                        "phase": phase.get("phase_name"),
+                        "duration_seconds": phase.get("duration_seconds"),
+                        "agent_executions_count": len(phase.get("agent_executions", []))
+                    }
+                    for phase in collaboration_record.get("workflow_execution", {}).get("phases", [])
+                ]
+            },
+            "ai_interactions": {
+                "total_ai_calls": collaboration_record.get("collaboration_statistics", {}).get("total_ai_api_calls", 0),
+                "total_tokens": collaboration_record.get("collaboration_statistics", {}).get("total_tokens_used", {}),
+                "estimated_cost_usd": collaboration_record.get("collaboration_statistics", {}).get("estimated_cost_usd", 0.0),
+                "success_rate": collaboration_record.get("collaboration_statistics", {}).get("success_rate", 0.0)
+            },
+            "deliverable_traceability": self._build_deliverable_trace_summary(
+                collaboration_record.get("deliverable_traceability", {})
+            ),
+            "state_evolution": {
+                "total_snapshots": len(collaboration_record.get("state_evolution", [])),
+                "key_milestones": [
+                    {
+                        "trigger": snapshot.get("trigger_event"),
+                        "timestamp": snapshot.get("timestamp"),
+                        "phase": snapshot.get("phase")
+                    }
+                    for snapshot in collaboration_record.get("state_evolution", [])
+                    if snapshot.get("trigger_event") in [
+                        "initialization_complete",
+                        "theoretical_foundation_complete",
+                        "architecture_design_complete",
+                        "content_creation_complete",
+                        "assessment_design_complete",
+                        "material_production_complete",
+                        "session_complete"
+                    ]
+                ]
+            },
+            "quality_assurance": {
+                "final_quality_score": collaboration_record.get("session_metadata", {}).get("final_quality_score"),
+                "iteration_count": collaboration_record.get("session_metadata", {}).get("iteration_count", 0),
+                "component_quality_scores": self._extract_quality_scores(collaboration_record)
+            }
+        }
+
+        return evidence
+
+    def _build_deliverable_trace_summary(self, deliverable_traces: Dict[str, Any]) -> Dict[str, Any]:
+        """构建交付物追踪摘要"""
+
+        summary = {}
+        for component_name, trace in deliverable_traces.items():
+            summary[component_name] = {
+                "generated_at": trace.get("generated_at"),
+                "contributing_agents": trace.get("contributing_agents", []),
+                "source_executions_count": len(trace.get("source_execution_ids", [])),
+                "content_hash": trace.get("content_hash"),
+                "content_size": len(str(trace.get("data_content", ""))) if trace.get("data_content") else 0
+            }
+
+        return summary
+
+    def _extract_quality_scores(self, collaboration_record: Dict[str, Any]) -> Dict[str, float]:
+        """提取各组件质量评分"""
+
+        quality_scores = {}
+
+        # 从Agent执行记录中提取质量评分
+        for interaction in collaboration_record.get("agent_interactions", []):
+            agent_role = interaction.get("agent_role")
+            quality_score = interaction.get("quality_score", 0.0)
+
+            if agent_role and quality_score > 0:
+                if agent_role not in quality_scores:
+                    quality_scores[agent_role] = []
+                quality_scores[agent_role].append(quality_score)
+
+        # 计算平均质量评分
+        avg_quality_scores = {}
+        for agent_role, scores in quality_scores.items():
+            avg_quality_scores[agent_role] = sum(scores) / len(scores) if scores else 0.0
+
+        return avg_quality_scores
 
     def get_file_size(self, file_path: Path) -> str:
         """获取文件大小"""

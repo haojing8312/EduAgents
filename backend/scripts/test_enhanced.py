@@ -25,7 +25,7 @@ class TestRunner:
         self.start_time = time.time()
         self.test_results = {}
 
-    def run_command(self, cmd: List[str], description: str, cwd: Optional[Path] = None) -> bool:
+    def run_command(self, cmd: List[str], description: str, cwd: Optional[Path] = None, timeout: int = 300) -> bool:
         """运行命令并记录结果"""
         print(f"\n🔄 {description}")
         print(f"📂 工作目录: {cwd or BACKEND_ROOT}")
@@ -37,7 +37,7 @@ class TestRunner:
                 cwd=cwd or BACKEND_ROOT,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5分钟超时
+                timeout=timeout
             )
 
             if result.returncode == 0:
@@ -85,6 +85,12 @@ class TestRunner:
         script_path = PROJECT_ROOT / "tests" / "integration" / "test_business_flow.py"
         cmd = ["uv", "run", "python", str(script_path)]
         return self.run_command(cmd, "业务穿越测试")
+
+    def run_business_tracking_test(self) -> bool:
+        """运行增强版业务测试 - 集成协作追踪验证"""
+        script_path = PROJECT_ROOT / "scripts" / "test_business_with_tracking.py"
+        cmd = ["uv", "run", "python", str(script_path)]
+        return self.run_command(cmd, "业务追踪测试 - 完整协作验证", timeout=1200)  # 20分钟超时
 
     def run_api_tests(self) -> bool:
         """运行API测试"""
@@ -199,6 +205,7 @@ def main():
     parser.add_argument("--integration", action="store_true", help="运行集成测试")
     parser.add_argument("--api", action="store_true", help="运行API测试")
     parser.add_argument("--business", action="store_true", help="运行业务穿越测试")
+    parser.add_argument("--tracking", action="store_true", help="运行业务追踪测试 - 完整协作验证")
     parser.add_argument("--coverage", action="store_true", help="运行测试覆盖率分析")
     parser.add_argument("--performance", action="store_true", help="运行性能测试")
     parser.add_argument("--all", action="store_true", help="运行所有测试")
@@ -241,6 +248,8 @@ def main():
             tests_to_run.append("api")
         if args.business:
             tests_to_run.append("business")
+        if args.tracking:
+            tests_to_run.append("tracking")
         if args.coverage:
             tests_to_run.append("coverage")
         if args.performance:
@@ -282,6 +291,8 @@ def main():
             runner.run_api_tests()
         elif test_type == "business":
             runner.run_business_flow_test()
+        elif test_type == "tracking":
+            runner.run_business_tracking_test()
         elif test_type == "coverage":
             runner.run_coverage_test()
         elif test_type == "performance":
