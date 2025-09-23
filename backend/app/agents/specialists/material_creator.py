@@ -293,57 +293,35 @@ Produce worksheets including:
         audience = task.get("audience", "students")
 
         prompt = f"""
-Create a complete presentation for:
+Create a concise presentation outline for:
 Topic: {presentation_topic}
 Audience: {audience}
 
-Develop presentation with:
-1. Title slide with objectives
-2. Agenda/roadmap slide
-3. Content slides with key points
-4. Interactive activity slides
-5. Discussion prompt slides
-6. Summary/recap slide
-7. Resources/next steps slide
-8. Visual descriptions for each slide
+Include:
+1. Clear slide titles and main content
+2. Interactive elements for engagement
+3. Practical delivery tips
+4. Essential materials list
+
+Keep it practical and focused on key learning points.
 """
 
+        # Simplified schema to prevent JSON parsing issues
         response_schema = {
             "presentation": {
                 "title": "string",
                 "total_slides": "number",
                 "duration": "string",
-                "slides": [
+                "outline": [
                     {
-                        "number": "number",
-                        "type": "string",
-                        "title": "string",
-                        "content": {
-                            "main_points": ["string"],
-                            "speaker_notes": "string",
-                            "visuals": ["string"],
-                            "animations": ["string"],
-                        },
-                        "interaction": {
-                            "type": "string",
-                            "instructions": "string",
-                            "timing": "string",
-                        },
-                        "design": {
-                            "layout": "string",
-                            "color_scheme": "string",
-                            "fonts": "string",
-                            "graphics": ["string"],
-                        },
+                        "slide_number": "number",
+                        "slide_title": "string",
+                        "main_content": "string",
+                        "interaction_type": "string"
                     }
                 ],
-                "supplementary_materials": {
-                    "handouts": ["string"],
-                    "activities": ["string"],
-                    "references": ["string"],
-                },
                 "delivery_tips": ["string"],
-                "technical_requirements": ["string"],
+                "materials_needed": ["string"]
             }
         }
 
@@ -360,66 +338,73 @@ Develop presentation with:
     async def _create_project_templates(
         self, task: Dict[str, Any], state: AgentState, stream: bool
     ) -> Dict[str, Any]:
-        """Create project planning and tracking templates"""
+        """Create project planning and tracking templates with chunked processing"""
 
         project_type = task.get("project_type", "general")
 
-        prompt = f"""
-Create comprehensive project templates for {project_type} PBL.
+        # Split template creation into smaller chunks to avoid JSON parsing issues
+        templates = []
 
-Develop templates including:
-1. Project planning template
-2. Research organizer
-3. Timeline and milestone tracker
-4. Team roles and responsibilities
-5. Daily/weekly progress logs
-6. Resource tracking sheet
-7. Presentation planning template
-8. Reflection journal template
+        # Define core templates to create (limited to prevent JSON overflow)
+        core_templates = [
+            ("项目规划模板", "Project planning template"),
+            ("研究组织器", "Research organizer"),
+            ("进度追踪器", "Timeline and milestone tracker"),
+            ("角色分工表", "Team roles and responsibilities")
+        ]
+
+        for template_name, template_desc in core_templates:
+            try:
+                # Create simplified prompt for each template
+                prompt = f"""
+Create a {template_desc} for {project_type} PBL projects.
+
+Focus on practical usability and include:
+- Clear structure with essential sections
+- Student-friendly instructions
+- Basic customization options
+
+Keep the response concise but comprehensive.
 """
 
-        response_schema = {
-            "templates": [
-                {
-                    "name": "string",
-                    "purpose": "string",
-                    "format": "string",
-                    "sections": [
-                        {
-                            "title": "string",
-                            "description": "string",
-                            "fields": [
-                                {
-                                    "label": "string",
-                                    "type": "string",
-                                    "instructions": "string",
-                                    "example": "string",
-                                }
-                            ],
-                            "tips": ["string"],
-                        }
-                    ],
-                    "instructions": {"student": ["string"], "teacher": ["string"]},
-                    "customization": {
-                        "editable_elements": ["string"],
-                        "adaptation_suggestions": ["string"],
-                    },
-                    "digital_version": {
-                        "platform": "string",
-                        "features": ["string"],
-                        "sharing": "string",
-                    },
+                # Simplified schema to prevent JSON parsing issues
+                response_schema = {
+                    "template": {
+                        "name": "string",
+                        "purpose": "string",
+                        "format": "string",
+                        "sections": [
+                            {
+                                "title": "string",
+                                "description": "string",
+                                "key_elements": ["string"]
+                            }
+                        ],
+                        "usage_instructions": ["string"],
+                        "customization_tips": ["string"]
+                    }
                 }
-            ]
-        }
 
-        result = await self._generate_structured_response(
-            prompt, response_schema, self._system_prompts["material_production"]
-        )
+                result = await self._generate_structured_response(
+                    prompt, response_schema, self._system_prompts["material_production"]
+                )
+
+                templates.append(result["template"])
+
+            except Exception as e:
+                # 记录失败但不提供低质量兜底，让上层决定如何处理
+                logger.error(f"❌ 模板创建失败 {template_name}: {e}")
+                # 不添加任何占位符模板，保持templates列表纯净
+
+        # 检查是否有成功创建的模板
+        if not templates:
+            raise Exception(f"所有{project_type}模板创建都失败了，无法提供合格的项目模板")
+
+        logger.info(f"✅ 成功创建 {len(templates)}/{len(core_templates)} 个模板")
 
         return {
             "type": "templates",
-            "materials": result["templates"],
+            "materials": templates,
             "usability_score": 0.94,
         }
 

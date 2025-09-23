@@ -107,6 +107,7 @@ class AgentState:
     error_log: List[Dict[str, Any]] = field(default_factory=list)
     recovery_checkpoints: List[Dict[str, Any]] = field(default_factory=list)
     fallback_strategies: Dict[str, Any] = field(default_factory=dict)
+    workflow_warnings: List[str] = field(default_factory=list)
 
     # Collaboration Tracking
     collaboration_tracker: Optional[Any] = field(default=None)  # Injected by orchestrator

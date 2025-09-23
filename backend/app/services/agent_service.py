@@ -446,10 +446,23 @@ class AgentService:
 
         session = self.sessions[session_id]
 
-        if session["status"] != "completed":
-            raise ValueError(f"Session {session_id} is not completed")
+        # Allow export for failed sessions with partial results
+        session_status = session["status"]
+        if session_status not in ["completed", "failed"]:
+            raise ValueError(f"Session {session_id} cannot be exported (status: {session_status})")
 
         result = session.get("result", {})
+
+        # For failed sessions, include partial results and error information
+        if session_status == "failed":
+            result = {
+                "status": "partial_failure",
+                "warning": "此会话未完全完成，以下为部分结果",
+                "partial_result": result,
+                "error_info": session.get("error", "未知错误"),
+                "completed_phases": session.get("completed_phases", []),
+                "export_timestamp": datetime.utcnow().isoformat()
+            }
 
         if format == "json":
             return result

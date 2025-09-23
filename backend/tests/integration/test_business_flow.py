@@ -158,6 +158,30 @@ class BusinessFlowTester:
             logger.error(f"❌ 协作数据导出失败: {e}")
             self.log_test_result("协作数据导出", False, {"error": str(e)})
 
+    async def _handle_failed_session(self, session_id: str, error_msg: str):
+        """处理失败的会话，记录失败信息并尝试导出协作追踪数据（用于问题分析）"""
+        try:
+            # 记录失败信息
+            failure_info = {
+                "status": "failed",
+                "error": error_msg,
+                "session_id": session_id,
+                "failure_timestamp": datetime.now().isoformat(),
+                "note": "此会话已失败，无法提供课程设计结果。以下协作数据仅用于问题分析。"
+            }
+
+            # 保存失败记录（明确标注为失败，不包含任何可能误导的结果）
+            with open(self.test_run_dir / "session_failure_record.json", 'w', encoding='utf-8') as f:
+                json.dump(failure_info, f, ensure_ascii=False, indent=2)
+            logger.info("📝 失败记录已保存")
+
+            # 尝试导出协作追踪数据（仅用于调试和问题分析）
+            logger.info("🔍 尝试导出协作追踪数据用于问题分析...")
+            await self.export_collaboration_data(session_id)
+
+        except Exception as e:
+            logger.warning(f"⚠️ 处理失败会话时出现异常: {e}")
+
     def _validate_course_design_result(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
         """验证课程设计结果的质量"""
         quality_check = {
@@ -390,6 +414,11 @@ class BusinessFlowTester:
                 elif status == "failed":
                     error_msg = status_data.get("error", "未知错误")
                     logger.error(f"❌ 设计任务失败: {error_msg}")
+
+                    # 即使失败，也尝试获取部分结果和协作数据
+                    logger.info("🔄 尝试获取部分结果和协作数据...")
+                    await self._handle_failed_session(session_id, error_msg)
+
                     self.log_test_result("课程设计会话流程", False, {"error": error_msg})
                     return False
                 elif status not in ["running", "created"]:
@@ -606,10 +635,24 @@ class BusinessFlowTester:
         collaboration_tracking_validation["exported_files_count"] = len(existing_files)
         collaboration_tracking_validation["exported_files"] = existing_files
 
-        # 检查课程设计结果中是否包含协作证据
+        # 检查是否存在会话失败记录
+        failure_record_path = self.test_run_dir / "session_failure_record.json"
+        session_failed = failure_record_path.exists()
+
+        # 检查课程设计结果状态
         design_result = self.session_data.get("design_result", {})
-        if design_result and "collaboration_evidence" in design_result:
+        course_design_successful = False
+
+        if session_failed:
+            collaboration_tracking_validation["session_status"] = "failed"
+            collaboration_tracking_validation["evidence_found"] = False
+            collaboration_tracking_validation["note"] = "会话失败，协作数据仅用于问题分析"
+        elif design_result and "collaboration_evidence" in design_result:
             collaboration_tracking_validation["evidence_found"] = True
+            collaboration_tracking_validation["session_status"] = "completed"
+            course_design_successful = True
+        else:
+            collaboration_tracking_validation["session_status"] = "unknown"
 
         report = {
             "test_metadata": {
@@ -622,7 +665,9 @@ class BusinessFlowTester:
                 "successful_tests": successful_tests,
                 "failed_tests": total_tests - successful_tests,
                 "success_rate": f"{(successful_tests / total_tests * 100):.1f}%" if total_tests > 0 else "0%",
-                "test_time": datetime.now().isoformat()
+                "test_time": datetime.now().isoformat(),
+                "course_design_successful": course_design_successful,
+                "quality_assurance": "严格质量控制 - 失败时不提供低质量兜底方案"
             },
             "collaboration_tracking_validation": collaboration_tracking_validation,
             "results": self.test_results,

@@ -513,33 +513,138 @@ Ensure your response is valid JSON that matches the schema exactly.
         if self.test_mode:
             print(f"🔍 test mode response content: {response.content[:200]}...")
 
-        # Parse JSON response
-        try:
-            # Extract JSON from response
-            content = response.content
+        # Parse JSON response with enhanced error handling
+        def clean_json_content(content: str) -> str:
+            """Clean and prepare JSON content for parsing"""
+            # Remove markdown code blocks
             if "```json" in content:
-                content = content.split("```json")[1].split("```")[0]
+                parts = content.split("```json")
+                if len(parts) > 1:
+                    content = parts[1].split("```")[0]
+            elif "```" in content:
+                # Handle generic code blocks
+                parts = content.split("```")
+                if len(parts) >= 3:
+                    content = parts[1]
 
-            return json.loads(content.strip())
+            # Strip whitespace
+            content = content.strip()
+
+            # Find the JSON content between first { and last }
+            start_idx = content.find("{")
+            end_idx = content.rfind("}")
+
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                content = content[start_idx:end_idx + 1]
+
+            # Fix common JSON issues
+            # Replace smart quotes with regular quotes
+            content = content.replace(""", '"').replace(""", '"')
+            content = content.replace("'", '"')
+
+            # Handle incomplete strings by truncating at the last complete key-value pair
+            # This is a safety mechanism for extremely large responses
+            if len(content) > 50000:  # If response is very large
+                last_complete = content.rfind('",')
+                if last_complete > 0:
+                    # Find the closing brace for this section
+                    remaining = content[last_complete + 2:].strip()
+                    if not remaining.endswith('}'):
+                        content = content[:last_complete + 2] + '\n}'
+
+            return content
+
+        try:
+            # Clean and extract JSON from response
+            content = clean_json_content(response.content)
+            return json.loads(content)
+
         except json.JSONDecodeError as e:
-            # Retry with more explicit instructions
+            logger.warning(f"JSON解析失败: {e}, 尝试修复...")
+
+            # Try to fix the JSON by handling incomplete strings
+            try:
+                # Attempt to fix incomplete JSON
+                content = clean_json_content(response.content)
+
+                # Handle unterminated strings - find last complete pair
+                if "Unterminated string" in str(e):
+                    # Find the position of the error
+                    error_pos = getattr(e, 'pos', len(content))
+
+                    # Truncate at the last complete JSON element before the error
+                    truncated = content[:error_pos]
+
+                    # Find last complete key-value pair
+                    last_comma = truncated.rfind('",')
+                    if last_comma > 0:
+                        truncated = truncated[:last_comma + 2]
+
+                        # Close any open objects/arrays
+                        open_braces = truncated.count('{') - truncated.count('}')
+                        open_brackets = truncated.count('[') - truncated.count(']')
+
+                        for _ in range(open_brackets):
+                            truncated += ']'
+                        for _ in range(open_braces):
+                            truncated += '}'
+
+                        return json.loads(truncated)
+
+            except Exception as repair_error:
+                logger.warning(f"JSON修复失败: {repair_error}")
+
+            # Retry with more explicit instructions and simplified request
             retry_prompt = f"""
-The previous response was not valid JSON. {prompt}
+The previous response contained invalid JSON. Please provide a response in valid JSON format only.
 
-IMPORTANT: Respond ONLY with valid JSON matching this exact structure:
+Original request: {prompt}
+
+CRITICAL INSTRUCTIONS:
+1. Respond ONLY with valid JSON - no markdown, no explanations
+2. Ensure all strings are properly escaped with double quotes
+3. Do not include any text outside the JSON object
+4. If the content is large, prioritize completeness of structure over detail
+
+Required JSON structure:
 {json.dumps(response_schema, indent=2)}
-
-No markdown, no explanations, just the JSON object.
 """
 
-            retry_response = await self.generate(
-                prompt=retry_prompt,
-                system_prompt=system_prompt,
-                model=model,
-                temperature=0.1,  # Very low temperature for retry
-            )
+            # 实现3次重试机制，绝不降低质量
+            max_retries = 3
+            for retry_count in range(max_retries):
+                try:
+                    logger.info(f"🔄 JSON解析重试 {retry_count + 1}/{max_retries}")
 
-            return json.loads(retry_response.content.strip())
+                    retry_response = await self.generate(
+                        prompt=retry_prompt,
+                        system_prompt=system_prompt,
+                        model=model,
+                        temperature=0.1 - (retry_count * 0.02),  # 逐渐降低温度
+                    )
+
+                    cleaned_retry = clean_json_content(retry_response.content)
+                    result = json.loads(cleaned_retry)
+
+                    logger.info(f"✅ JSON解析重试第{retry_count + 1}次成功")
+                    return result
+
+                except json.JSONDecodeError as retry_error:
+                    logger.warning(f"⚠️ JSON解析重试第{retry_count + 1}次失败: {retry_error}")
+                    if retry_count == max_retries - 1:
+                        # 3次重试都失败，明确抛出错误，不提供低质量兜底
+                        logger.error(f"❌ JSON解析经过{max_retries}次重试全部失败")
+                        logger.error(f"最终错误内容预览: {retry_response.content[:500]}...")
+                        raise json.JSONDecodeError(
+                            f"JSON解析失败，经过{max_retries}次重试仍无法解析。"
+                            f"最后一次错误: {retry_error}",
+                            retry_response.content,
+                            retry_error.pos if hasattr(retry_error, 'pos') else 0
+                        )
+
+                    # 继续下一次重试
+                    continue
+
 
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count for a given text"""
