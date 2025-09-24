@@ -70,6 +70,7 @@ dependencies = [
     "aiosqlite>=0.21.0",
     "reportlab>=4.4.4",
     "fpdf2>=2.8.4",
+    "json-repair>=0.51.0",
 ]
 
 [project.optional-dependencies]

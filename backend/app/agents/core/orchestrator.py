@@ -6,6 +6,7 @@ Enhanced with comprehensive collaboration tracking
 
 import asyncio
 import json
+import logging
 import traceback
 from datetime import datetime
 from enum import Enum
@@ -62,6 +63,9 @@ class PBLOrchestrator:
         self.enable_streaming = enable_streaming
         self.max_iterations = max_iterations
         self.enable_collaboration_tracking = enable_collaboration_tracking
+
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
 
         # Initialize collaboration tracking
         self.collaboration_tracker: Optional[CollaborationTracker] = None
@@ -183,8 +187,8 @@ class PBLOrchestrator:
                     "max_iterations": self.max_iterations
                 }
             )
-            # Inject tracker into state for agent access
-            state.collaboration_tracker = self.collaboration_tracker
+            # NOTE: 不将tracker实例注入state，避免序列化问题
+            # Tracker通过orchestrator本身访问，不需要在state中存储
 
         # Start tracking initialization phase
         if self.collaboration_tracker:
@@ -567,7 +571,7 @@ class PBLOrchestrator:
 
         for i, material_task in enumerate(material_types):
             try:
-                logger.info(f"🎨 开始创建素材 {i+1}/{total_materials}: {material_task['type']}")
+                self.logger.info(f"🎨 开始创建素材 {i+1}/{total_materials}: {material_task['type']}")
 
                 material_message = AgentMessage(
                     sender=AgentRole.ORCHESTRATOR,
@@ -582,23 +586,23 @@ class PBLOrchestrator:
                     if "materials" in result.get("content", {}):
                         state.learning_materials.extend(result["content"]["materials"])
                         successful_materials += 1
-                        logger.info(f"✅ 素材创建成功: {material_task['type']}")
+                        self.logger.info(f"✅ 素材创建成功: {material_task['type']}")
                         break
 
             except Exception as e:
-                logger.error(f"❌ 素材创建失败 {material_task['type']}: {e}")
+                self.logger.error(f"❌ 素材创建失败 {material_task['type']}: {e}")
                 # 不创建后备素材，记录失败
 
         # Log material production summary
         success_rate = (successful_materials / total_materials) * 100
-        logger.info(f"📊 素材创建完成: {successful_materials}/{total_materials} ({success_rate:.1f}%)")
+        self.logger.info(f"📊 素材创建完成: {successful_materials}/{total_materials} ({success_rate:.1f}%)")
 
         # 检查是否有足够的成功素材来完成课程设计
         min_required_materials = 2  # 至少需要2种素材才能提供基本的课程支持
 
         if successful_materials < min_required_materials:
             error_msg = f"素材创建严重失败: 仅成功创建{successful_materials}/{total_materials}种素材，不足以支撑完整的课程设计"
-            logger.error(f"❌ {error_msg}")
+            self.logger.error(f"❌ {error_msg}")
             state.workflow_warnings.append(error_msg)
 
             # 这里可以选择继续（记录警告）或者终止流程（抛出异常）
@@ -606,7 +610,7 @@ class PBLOrchestrator:
             if successful_materials == 0:
                 raise Exception("所有素材创建都失败了，无法继续课程设计流程")
             else:
-                logger.warning(f"⚠️ 素材不足但继续流程，质量可能受影响")
+                self.logger.warning(f"⚠️ 素材不足但继续流程，质量可能受影响")
 
         elif successful_materials < total_materials:
             state.workflow_warnings.append(f"素材创建部分失败: {successful_materials}/{total_materials}")

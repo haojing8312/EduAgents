@@ -110,7 +110,7 @@ class AgentState:
     workflow_warnings: List[str] = field(default_factory=list)
 
     # Collaboration Tracking
-    collaboration_tracker: Optional[Any] = field(default=None)  # Injected by orchestrator
+    # collaboration_tracker: Optional[Any] = field(default=None)  # REMOVED: 避免序列化问题
     collaboration_record: Optional[Dict[str, Any]] = field(default=None)  # Final record
 
     # Metadata
