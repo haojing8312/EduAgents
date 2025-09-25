@@ -25,6 +25,7 @@ from ..specialists import (
 from .llm_manager import LLMManager, ModelType
 from .state import AgentMessage, AgentRole, AgentState, MessageType, WorkflowPhase
 from .task_tracker import TaskExecutionTracker
+from .requirement_parser import RequirementParser, ParsedRequirement
 from ...core.collaboration_tracker import CollaborationTracker
 from ...core.ai_call_logger import AICallLogger
 
@@ -73,6 +74,10 @@ class PBLOrchestrator:
 
         # Initialize task execution tracker
         self.task_tracker: Optional[TaskExecutionTracker] = None
+
+        # Initialize requirement parser
+        self.requirement_parser = RequirementParser()
+        self.parsed_requirement: Optional[ParsedRequirement] = None
 
         # Initialize specialized agents
         self.agents = {
@@ -197,6 +202,41 @@ class PBLOrchestrator:
         # Validate requirements
         if not state.course_requirements:
             raise ValueError("Course requirements must be provided")
+
+        # 🔍 核心改进：精准需求解析
+        self.logger.info("🔍 开始精准需求解析...")
+        try:
+            self.parsed_requirement = self.requirement_parser.parse_requirements(state.course_requirements)
+
+            self.logger.info(f"✅ 需求解析完成 - 置信度: {self.parsed_requirement.confidence_score:.0%}")
+            self.logger.info(f"📋 主题: {self.parsed_requirement.topic}")
+            self.logger.info(f"👥 受众: {self.parsed_requirement.audience} ({self.parsed_requirement.age_group.value})")
+            self.logger.info(f"⏰ 时间: {self.parsed_requirement.time_mode.value} - {self.parsed_requirement.total_duration.get('total_hours', 0)}小时")
+            self.logger.info(f"🎯 交付物: {', '.join(self.parsed_requirement.final_deliverables[:3])}")
+
+            # 将解析结果存储到state中供后续智能体使用
+            state.course_requirements["_parsed_requirement"] = {
+                "topic": self.parsed_requirement.topic,
+                "audience": self.parsed_requirement.audience,
+                "age_group": self.parsed_requirement.age_group.value,
+                "age_range": self.parsed_requirement.age_range,
+                "time_mode": self.parsed_requirement.time_mode.value,
+                "total_duration": self.parsed_requirement.total_duration,
+                "learning_objectives": self.parsed_requirement.learning_objectives,
+                "target_skills": self.parsed_requirement.target_skills,
+                "ai_tools": self.parsed_requirement.ai_tools,
+                "final_deliverables": self.parsed_requirement.final_deliverables,
+                "class_size": self.parsed_requirement.class_size,
+                "equipment": self.parsed_requirement.equipment,
+                "institution_type": self.parsed_requirement.institution_type.value,
+                "confidence_score": self.parsed_requirement.confidence_score,
+                "validation_passed": self.parsed_requirement.validation_passed
+            }
+
+        except Exception as e:
+            self.logger.error(f"❌ 需求解析失败: {e}")
+            # 继续使用原始需求，但记录警告
+            state.workflow_warnings.append(f"需求解析失败，使用原始需求: {str(e)}")
 
         # Set up initial configuration
         state.update_agent_status(AgentRole.ORCHESTRATOR, "initializing")

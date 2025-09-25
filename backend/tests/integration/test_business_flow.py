@@ -301,25 +301,36 @@ class BusinessFlowTester:
             # 1. 创建课程设计会话
             session_request = {
                 "requirements": {
-                    "topic": "人工智能基础与应用",
-                    "audience": "高中生",
-                    "age_group": {"min": 16, "max": 18},
-                    "duration": {"weeks": 8, "hours_per_week": 4},
+                    "topic": "月球永居人类的科技装备展",
+                    "audience": "中小学生",
+                    "age_group": {"min": 8, "max": 15},
+                    "duration": {"days": 3, "hours_per_day": 6},
                     "goals": [
-                        "理解人工智能的基本概念和发展历程",
-                        "掌握机器学习的基础算法原理",
-                        "能够使用Python实现简单的AI项目",
-                        "培养批判性思维和科技伦理意识"
+                        "激发孩子对未来科技和太空探索的想象力",
+                        "掌握3D建模和3D打印的基础技能",
+                        "学会使用AI动画技术制作虚实融合视频",
+                        "培养创新思维和科学探索精神",
+                        "完成月球装备的完整设计制作流程"
                     ],
-                    "context": "高中信息技术课程，结合STEAM教育理念",
+                    "context": "国庆节3天AI科技训练营，6人小班制，未来科幻主题",
                     "constraints": {
-                        "budget": "中等",
-                        "equipment": "计算机机房",
-                        "time_limit": "学期内完成"
+                        "budget": "充足",
+                        "equipment": "3D打印机、计算机、AI动画软件、摄影设备",
+                        "time_limit": "3天内完成所有作品"
                     },
                     "preferences": {
-                        "teaching_style": "项目驱动",
-                        "assessment_type": "多元化评价"
+                        "teaching_style": "项目制学习+脑洞大开",
+                        "assessment_type": "作品展示+创意评价"
+                    },
+                    "special_requirements": {
+                        "class_size": 6,
+                        "final_deliverables": [
+                            "月球装备说明书",
+                            "3D打印装备实物",
+                            "AI动画虚实融合展览视频"
+                        ],
+                        "theme_focus": "月球永居生存装备",
+                        "creativity_level": "科幻未来向"
                     }
                 },
                 "mode": "full_course",

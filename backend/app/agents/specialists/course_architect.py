@@ -11,6 +11,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 from ..core.base_agent import BaseAgent
 from ..core.llm_manager import ModelCapability, ModelType
 from ..core.state import AgentMessage, AgentRole, AgentState, MessageType
+from ..core.time_scheduler import TimeScheduler, ScheduleTemplate
 
 
 class CourseArchitectAgent(BaseAgent):
@@ -33,32 +34,42 @@ class CourseArchitectAgent(BaseAgent):
             preferred_model=ModelType.CLAUDE_35_SONNET,
         )
 
+        # 初始化智能时间调度器
+        self.time_scheduler = TimeScheduler()
+
     def _initialize_system_prompts(self) -> None:
         """初始化AI时代课程架构师的系统提示"""
         self._system_prompts[
             "default"
         ] = """
-你是一位专精AI时代课程架构设计的专业架构师，拥有15年跨学科课程设计经验。你擅长将教育理论转化为具体的课程结构，设计符合AI时代需求的学习路径和项目架构。
+你是一位专精AI时代课程架构设计的顶级架构师，拥有18年跨学科课程设计经验和深厚的时间管理专业背景。你擅长将教育理论转化为具体的课程结构，特别精通各种时间模式的灵活设计和年龄适配的时间安排。
 
 ## 🎯 核心专长
 
-### **跨学科整合设计**
-- STEAM+人文的深度融合课程设计
-- 打破学科壁垒的主题式学习架构
-- 知识点之间的逻辑关联和递进关系
-- 真实世界问题的跨学科解决方案
+### **🕒 多模式时间架构大师**
+- **集训营模式 (3-7天)**: 密集沉浸式学习安排，每日6-8小时高效时间分配
+- **周课程模式 (4-12周)**: 标准分布式学习，每周固定时间的渐进式深化
+- **学期课程模式 (整学期)**: 长期系统性培养，与校历深度结合的螺旋式上升
+- **工作坊模式 (1-2天)**: 精华浓缩体验，核心技能快速习得
 
-### **计算思维培养路径**
-- 系统性的思维训练课程设计
-- 抽象思维、模式识别、算法思维的培养
-- 从具体操作到抽象概念的学习进阶
-- 计算思维在各学科中的渗透应用
+### **🧠 精准年龄适配专家**
+- **3-6岁**: 15分钟注意力周期，游戏化微课设计，感官体验为主
+- **6-12岁**: 25分钟学习单元，动手操作优先，同伴协作强化
+- **12-15岁**: 35分钟深度探索，抽象思维引导，自主选择增强
+- **15-18岁**: 45分钟项目聚焦，创造力高峰期，价值观塑造关键期
+- **跨年龄段**: 分层设计，个性化路径，peer learning最大化
 
-### **项目式学习架构**
-- 基于真实问题的项目设计框架
-- 项目复杂度的递进式设计
-- 个人与团队项目的平衡配置
-- 项目成果的多元化展示平台
+### **🏗️ AI+PBL架构创新**
+- 人机协作深度融合的项目架构设计
+- AI工具在不同学习阶段的精准嵌入
+- 基于真实世界复杂问题的跨学科整合
+- 从导入到展示的完整学习闭环设计
+
+### **📊 智能时间优化系统**
+- 基于注意力科学的时间块切分
+- 认知负荷理论指导的复杂度递进
+- 多样化休息策略和能量管理
+- 个性化学习节奏的动态调整机制
 
 ## 🏗️ 设计框架
 
@@ -146,12 +157,72 @@ Design a comprehensive course architecture considering:
     async def _design_course_structure(
         self, task: Dict[str, Any], state: AgentState, stream: bool
     ) -> Dict[str, Any]:
-        """Design the overall course structure"""
+        """Design the overall course structure with intelligent time scheduling"""
 
         requirements = state.course_requirements
         framework = state.theoretical_framework
 
-        prompt = f"""
+        # 🕒 获取精准解析结果并生成智能时间安排
+        parsed_req = requirements.get("_parsed_requirement", {})
+        schedule = None
+
+        if parsed_req:
+            # 使用智能时间调度器
+            try:
+                schedule = self.time_scheduler.create_schedule(
+                    time_mode=parsed_req.get('time_mode', '周课程模式'),
+                    age_range=(
+                        parsed_req.get('age_range', {}).get('min', 12),
+                        parsed_req.get('age_range', {}).get('max', 15)
+                    ),
+                    total_duration=parsed_req.get('total_duration', {"total_hours": 16}),
+                    topic=parsed_req.get('topic', '未知主题'),
+                    target_skills=parsed_req.get('target_skills', []),
+                    final_deliverables=parsed_req.get('final_deliverables', [])
+                )
+
+                schedule_info = self.time_scheduler.format_schedule_for_display(schedule)
+
+            except Exception as e:
+                self.logger.error(f"❌ 智能时间调度失败: {e}")
+                schedule_info = "使用标准时间安排"
+        else:
+            schedule_info = "基于通用时间分配"
+
+        if parsed_req:
+            prompt = f"""
+【基于精准需求解析和智能时间调度的课程架构设计】
+
+=== 精准解析后的课程信息 ===
+🎯 课程主题: {parsed_req.get('topic', '未指定')}
+👥 目标受众: {parsed_req.get('audience', '未指定')} ({parsed_req.get('age_group', '未指定')})
+📅 精确年龄: {parsed_req.get('age_range', {}).get('min', 0)}-{parsed_req.get('age_range', {}).get('max', 0)}岁
+⏰ 时间模式: {parsed_req.get('time_mode', '未指定')}
+🕒 总学时: {parsed_req.get('total_duration', {}).get('total_hours', 0)}小时
+🏛️ 机构类型: {parsed_req.get('institution_type', '未指定')}
+👥 班级规模: {parsed_req.get('class_size', '小班')}人
+
+=== 最终交付物要求（必须精确匹配） ===
+{chr(10).join('• ' + deliverable for deliverable in parsed_req.get('final_deliverables', []))}
+
+=== 智能时间调度结果 ===
+{schedule_info}
+
+【核心架构设计任务】
+请严格基于以上信息设计课程架构，确保：
+
+1. **时间架构匹配**: 完全遵循{parsed_req.get('time_mode', '周课程模式')}的特点，时间分配精确对应{parsed_req.get('total_duration', {}).get('total_hours', 0)}小时
+2. **年龄精准适配**: 课程复杂度、内容深度、活动形式严格匹配{parsed_req.get('age_range', {}).get('min', 0)}-{parsed_req.get('age_range', {}).get('max', 0)}岁认知水平
+3. **主题深度契合**: 所有模块都必须紧密围绕"{parsed_req.get('topic', '未知主题')}"展开，避免通用化内容
+4. **交付物导向**: 整个课程架构必须以产出{', '.join(parsed_req.get('final_deliverables', []))}为最终目标
+5. **技能培养路径**: 系统性培养{', '.join(parsed_req.get('target_skills', []))}等核心技能
+6. **AI工具集成**: 合理嵌入{', '.join(parsed_req.get('ai_tools', []))}等AI工具的使用
+
+解析置信度: {parsed_req.get('confidence_score', 0):.0%}
+"""
+        else:
+            # 兜底方案
+            prompt = f"""
 Design a comprehensive PBL course structure based on:
 
 Requirements: {json.dumps(requirements, indent=2)}
